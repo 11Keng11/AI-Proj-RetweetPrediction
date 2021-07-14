@@ -17,4 +17,4 @@ class Net(nn.Module):
         return x
 
 
-model = Net(12, 64)
+# model = Net(12, 64)

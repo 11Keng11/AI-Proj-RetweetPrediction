@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 class TweetsCOV19Dataset(Dataset):
     def __init__(self, mode = "train"):
-        if mode not in ["train", " val", "test"]:
+        if mode not in ["train", "val", "test"]:
             raise ValueError("Mode must be 'train', 'val' or 'test'.")
         self._mode = mode
         # hardcoded total number of rows based on self._mode
@@ -23,8 +23,10 @@ class TweetsCOV19Dataset(Dataset):
             totalRows = 2995436
         elif self._mode == "test":
             totalRows = 2995435
-        with tqdm(total=totalRows) as bar:
+        with tqdm(total=totalRows, desc="Loading {} data".format(mode)) as bar:
             self.csv_file = pd.read_csv(self.get_dataset_path(self._mode), skiprows=lambda x: bar.update(1) and False)
+        # remove the 2 problem features
+        self.csv_file = self.csv_file[self.csv_file.columns[~self.csv_file.columns.isin(["Tweet ID", "Timestamp"])]]
         X_data = self.csv_file.loc[:, self.csv_file.columns != 'No. of Retweets'].values
         Y_data = self.csv_file.loc[:, self.csv_file.columns == 'No. of Retweets'].values
         self.x_tensor = torch.tensor(X_data)
@@ -52,8 +54,4 @@ class TweetsCOV19Dataset(Dataset):
 def get_data_loader(mode="train", batch_size=64):
     '''Get the Dataloader, mode can be train or validation'''
     dataset = TweetsCOV19Dataset(mode=mode)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-if __name__ == '__main__':
-    test = get_data_loader()
-    print(test)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=3) #num workers > 0 & pin_memory = True means dataloading will be async
