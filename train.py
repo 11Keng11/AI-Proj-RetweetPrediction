@@ -106,7 +106,7 @@ def saveModel(model, modelName, epoch):
     # save the model
     savePath = os.path.join(saveDir, "{}_epoch_{}.pth".format(modelName, epoch) )
     torch.save(model.state_dict(), savePath)
-    print ("Model: {} saved in {}".format(modelName, savePath))
+    # print ("Model: {} saved in {}".format(modelName, savePath))
 
 def getChosenOptimizer(opt):
     '''Get corresponding pytorch optimizer based on argparse input'''
