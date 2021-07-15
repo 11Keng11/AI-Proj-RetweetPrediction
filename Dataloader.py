@@ -27,10 +27,15 @@ class TweetsCOV19Dataset(Dataset):
             self.csv_file = pd.read_csv(self.get_dataset_path(self._mode), skiprows=lambda x: bar.update(1) and False)
         # remove the 2 problem features
         self.csv_file = self.csv_file[self.csv_file.columns[~self.csv_file.columns.isin(["Tweet ID", "Timestamp"])]]
-        X_data = self.csv_file.loc[:, self.csv_file.columns != 'No. of Retweets'].values
+
+        # create a normalized_df here
+        normalized_df = (self.csv_file-self.csv_file.min())/(self.csv_file.max()-self.csv_file.min())
+
+        X_data = normalized_df.loc[:, normalized_df.columns != 'No. of Retweets'].values
         Y_data = self.csv_file.loc[:, self.csv_file.columns == 'No. of Retweets'].values
-        self.x_tensor = torch.tensor(X_data)
-        self.y_tensor = torch.tensor(Y_data)
+
+        self.x_tensor = torch.tensor(X_data, dtype=torch.float)
+        self.y_tensor = torch.tensor(Y_data, dtype=torch.float)
 
     def get_dataset_path(self, _mode):
         '''Get the path to a particular dataset file'''
@@ -54,4 +59,4 @@ class TweetsCOV19Dataset(Dataset):
 def get_data_loader(mode="train", batch_size=64):
     '''Get the Dataloader, mode can be train or validation'''
     dataset = TweetsCOV19Dataset(mode=mode)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=3) #num workers > 0 & pin_memory = True means dataloading will be async
+    return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True) #num workers > 0 & pin_memory = True means dataloading will be async

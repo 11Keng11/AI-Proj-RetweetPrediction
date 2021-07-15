@@ -9,6 +9,7 @@ class Net(nn.Module):
         self.hidden1 = nn.Linear(n_feature, n_hidden)
         self.hidden2 = nn.Linear(n_hidden, n_hidden)
         self.oupt = nn.Linear(n_hidden, 1)
+        self.bn1 = nn.BatchNorm1d(n_hidden)
 
     def forward(self, x):
         x = F.relu(self.hidden1(x))

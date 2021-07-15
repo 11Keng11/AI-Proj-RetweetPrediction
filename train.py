@@ -7,7 +7,7 @@
 import torch
 from Dataloader import get_data_loader
 # from model import PCRNN # do we have model file?
-from utils import RMSLELoss # custom loss function
+from utils import RMSLELoss, MSLELoss # custom loss function
 import os
 import time
 import math
@@ -16,7 +16,7 @@ import argparse
 from Regression_NN_1 import Net
 
 ## PYTORCH DEBUG TOOLS
-torch.autograd.set_detect_anomaly(True)
+torch.autograd.set_detect_anomaly(False)
 torch.autograd.profiler.profile(False)
 torch.autograd.profiler.emit_nvtx(False)
 
@@ -55,9 +55,14 @@ def initTrainingSession(sessionName):
         check = input("Continue? (Y/N) > ")
         if check == "N" or check == "n":
             quit()
+        elif check == "Y" or check == "y":
+            modelFolder = "Models"
+            saveDir = os.path.join(modelFolder, sessionName)
+            savePath = os.path.join(saveDir, "trainingStats.csv")
+            os.remove(savePath)
+            print ("Removed: {}".format(savePath))
 
     print ("\nTraining session successfully inited!")
-
 
 def checkIfTrainingSessionExists(modelName):
     modelFolder = "Models"
@@ -67,6 +72,15 @@ def checkIfTrainingSessionExists(modelName):
         print ("EXISTING TRAINING SESSION EXISTS!")
         return True
     return False
+
+def saveRunArgs(args):
+    modelFolder = "Models"
+    saveDir = os.path.join(modelFolder, args.name)
+    savePath = os.path.join(saveDir, "arguments.txt")
+    with open(savePath, "w") as f:
+        for key in vars(args):
+            f.write("{}: {}\n".format(key, getattr(args, key)))
+
 
 def saveTrainingStats(epoch, trainLoss, valLoss, accuracy, modelName):
     modelFolder = "Models"
@@ -118,70 +132,79 @@ def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, exp
     # declare optimizer and criterion
     optimizer = o(model.parameters(), lr=lr)
     # criterion = RMSLELoss()
-    criterion = torch.nn.L1Loss()
+    criterion = MSLELoss()
+    # criterion = torch.nn.MSELoss()
 
     bestAcc = 0
     # move model to gpu
     model = model.to("cuda")
 
-    for epoch in tqdm(range(1, n_epochs+1)):
-        # training section
-        trainLoss = 0
-        model.train()
-        for input_x, target in tqdm(trainLoader, desc="Training...", leave=False):
-            optimizer.zero_grad()
-            # Move to gpu
-            input_x = input_x.to("cuda")
-            target = target.to("cuda")
-            # print("INPUT: ", input_x)
-            # print ("Input finite: ", torch.isfinite(input_x).all())
-            pred = model(input_x.float())
-            loss = criterion(pred, target.float())
-            # for name, param in model.named_parameters():
-            #     if param.requires_grad:
-            #         print ("layer finite: ", torch.isfinite(param).all())
-            # # print ("Before backward!")
-            # print ("Loss: {}".format(loss.data))
-            loss.backward()
-            # print ("After backward!")
-            # print ("Loss: {}, grad: {}".format(loss.data, loss.grad))
-            optimizer.step()
-            # print ("After step")
-            # print ("Loss: {}, grad: {}".format(loss.data, loss.grad))
-            trainLoss += loss.cpu().item()
-            pred = pred.cpu()
-            # print ("PRED: ", pred)
+    with tqdm(range(1, n_epochs+1)) as ebar:
+        for epoch in ebar:
+            # training section
+            trainLoss = 0
+            model.train()
+            with tqdm(trainLoader, desc="Epoch: {} Train".format(epoch), leave=False) as tbar:
+                for input_x, target in tbar:
+                    optimizer.zero_grad()
+                    # Move to gpu
+                    input_x = input_x.to("cuda")
+                    target = target.to("cuda")
+                    # print("INPUT: ", input_x)
+                    # print ("Input finite: ", torch.isfinite(input_x).all())
+                    pred = model(input_x.float())
+                    loss = criterion(pred, target.float())
+                    # for name, param in model.named_parameters():
+                    #     if param.requires_grad:
+                    #         print ("layer finite: ", torch.isfinite(param).all())
+                    # # print ("Before backward!")
+                    # print ("Loss: {}".format(loss.data))
+                    loss.backward()
+                    # print ("After backward!")
+                    # print ("Loss: {}, grad: {}".format(loss.data, loss.grad))
+                    optimizer.step()
+                    # print ("After step")
+                    # print ("Loss: {}, grad: {}".format(loss.data, loss.grad))
+                    trainLoss += loss.cpu().item()
+                    pred = pred.cpu()
+                    # print ("PRED: ", pred)
+                    tbar.set_postfix(loss = trainLoss)
 
-        # Evaluation
-        accuracy = 0
-        validLoss = 0
-        model.eval()
-        for input_x, target in tqdm(valLoader, desc="Validating...", leave=False):
-            # Move to GPU
-            input_x = input_x.to("cuda")
-            target = target.to("cuda")
-            pred = model(input_x.float())
-            loss = criterion(pred, target.float())
-            validLoss += loss.cpu().item()
-            pred = pred.cpu()
-            # print ("PRED: ", pred)
-            # for index, p in enumerate(pred):
-            #     if int(p) == target[index]:
-            #         accuracy += 1
+            # Evaluation
+            accuracy = 0
+            validLoss = 0
+            model.eval()
+            with tqdm(valLoader, desc="Epoch: {} Valid".format(epoch), leave=False) as vbar:
+                for input_x, target in vbar:
+                    # Move to GPU
+                    input_x = input_x.to("cuda")
+                    target = target.to("cuda")
+                    pred = model(input_x.float())
+                    loss = criterion(pred, target.float())
+                    validLoss += loss.cpu().item()
+                    pred = pred.cpu()
+                    accuracy += torch.sum(pred.cpu().int() == target.cpu().int()).item()
+                    # print ("PRED: ", pred)
+                    # for index, p in enumerate(pred):
+                    #     if int(p) == target[index]:
+                    #         accuracy += 1
+                    vbar.set_postfix(loss = validLoss)
 
-        trainLoss /= int(len(trainLoader.dataset)/batch_size)
-        validLoss /= int(len(valLoader.dataset)/batch_size)
-        accuracy /= len(valLoader.dataset)
+            # print (accuracy)
 
-        print("Epoch: {:3}/{:3} Train Loss: {:.4f} Validation Loss: {:.4f} Accuracy: {:.2f}%".format(
-            epoch, n_epochs, trainLoss, validLoss, accuracy*100))
+            trainLoss /= int(len(trainLoader.dataset)/batch_size)
+            validLoss /= int(len(valLoader.dataset)/batch_size)
+            accuracy /= len(valLoader.dataset)
 
-        # if accuracy > bestAcc:
-        #     bestAcc = accuracy
-        #     saveModel(model, experiment_name, epoch)
+            ebar.set_description("Epoch: {:3}/{:3} Train Loss: {:.4f} Validation Loss: {:.4f} Accuracy: {:.2f}%".format(
+                epoch, n_epochs, trainLoss, validLoss, accuracy*100))
 
-        # save states
-        saveTrainingStats(epoch, trainLoss, validLoss, accuracy, experiment_name)
+            # if accuracy > bestAcc:
+            #     bestAcc = accuracy
+            saveModel(model, experiment_name, epoch)
+
+            # save states
+            saveTrainingStats(epoch, trainLoss, validLoss, accuracy, experiment_name)
 
 
 
@@ -193,7 +216,12 @@ if __name__ == "__main__":
     optimizer = getChosenOptimizer(args.optimizer)
     # initialize the training session
     initTrainingSession(args.name)
+    # save running arguments
+    saveRunArgs(args)
     # load in model
     model = Net(10, 64)
     # train!
-    train(model, args.epoch, args.batch, args.learningrate, optimizer, args.name)
+    try:
+        train(model, args.epoch, args.batch, args.learningrate, optimizer, args.name)
+    except KeyboardInterrupt:
+        exit()

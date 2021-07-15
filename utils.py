@@ -15,7 +15,19 @@ class RMSLELoss(nn.Module):
         self.mse = nn.MSELoss()
 
     def forward(self, pred, actual):
-        return torch.sqrt(self.mse(torch.log(pred+1), torch.log(actual+1)))
+        # print ("PRED: ", pred)
+        # print ("min: ", torch.)
+        # print ("ACTUAL: ", actual)
+        # print ("MSE: ", self.mse(torch.log(pred+1), torch.log(actual+1)))
+        return torch.sqrt(self.mse(torch.log(pred+1+1e-6), torch.log(actual+1)) + 1e-6)
+
+class MSLELoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.mse = nn.MSELoss()
+
+    def forward(self, pred, actual):
+        return self.mse(torch.log(pred+1+1e-6), torch.log(actual+1))
 
 def getWordEmbeddings():
     '''function uses pre-trained word embeddings to return a dictionary'''
