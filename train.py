@@ -134,6 +134,7 @@ def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, exp
     # criterion = RMSLELoss()
     criterion = MSLELoss()
     # criterion = torch.nn.MSELoss()
+    # criterion = torch.nn.L1Loss()
 
     bestAcc = 0
     # move model to gpu
@@ -153,6 +154,8 @@ def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, exp
                     # print("INPUT: ", input_x)
                     # print ("Input finite: ", torch.isfinite(input_x).all())
                     pred = model(input_x.float())
+                    # print ("PRED: ", pred)
+                    # print ("TARGET: ", target)
                     loss = criterion(pred, target.float())
                     # for name, param in model.named_parameters():
                     #     if param.requires_grad:
@@ -219,7 +222,8 @@ if __name__ == "__main__":
     # save running arguments
     saveRunArgs(args)
     # load in model
-    model = Net(10, 64)
+    # model = Net(10, 64)
+    model = Net(58, 64)
     # train!
     try:
         train(model, args.epoch, args.batch, args.learningrate, optimizer, args.name)

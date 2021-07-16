@@ -44,4 +44,4 @@ def getWordEmbeddings():
 
 if __name__ == "__main__":
     embeddings = getWordEmbeddings()
-    print (embeddings["florida"], type(embeddings["florida"]))
+    print (embeddings["cereal"])
