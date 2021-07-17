@@ -102,8 +102,11 @@ def saveModel(model, modelName, epoch):
     '''Saves the current model state dict based on modelname input
      and current epoch'''
     modelFolder = "Models"
-    saveDir = os.path.join(modelFolder, modelName)
+    modelSavesFolder = "ModelSaves"
+    saveDir = os.path.join(modelFolder, modelName, modelSavesFolder)
     # save the model
+    if not os.path.exists(saveDir):
+        os.mkdir(saveDir)
     savePath = os.path.join(saveDir, "{}_epoch_{}.pth".format(modelName, epoch) )
     torch.save(model.state_dict(), savePath)
     # print ("Model: {} saved in {}".format(modelName, savePath))
@@ -136,11 +139,12 @@ def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, exp
     # criterion = torch.nn.MSELoss()
     # criterion = torch.nn.L1Loss()
 
-    bestAcc = 0
+    bestValLoss = 1e20
     # move model to gpu
     model = model.to("cuda")
 
     with tqdm(range(1, n_epochs+1)) as ebar:
+
         for epoch in ebar:
             # training section
             trainLoss = 0
@@ -202,9 +206,9 @@ def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, exp
             ebar.set_description("Epoch: {:3}/{:3} Train Loss: {:.4f} Validation Loss: {:.4f}".format(
                 epoch, n_epochs, trainLoss, validLoss))
 
-            # if accuracy > bestAcc:
-            #     bestAcc = accuracy
-            saveModel(model, experiment_name, epoch)
+            if validLoss < bestValLoss:
+                bestValLoss = validLoss
+                saveModel(model, experiment_name, epoch)
 
             # save states
             saveTrainingStats(epoch, trainLoss, validLoss, experiment_name)
