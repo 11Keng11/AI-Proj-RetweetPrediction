@@ -72,15 +72,15 @@ class TweetsCOV19Dataset(Dataset):
         # X_data = self.csv_file.loc[:, self.csv_file.columns != 'No. of Retweets'].values
         Y_data = self.csv_file.loc[:, self.csv_file.columns == 'No. of Retweets'].values
 
-        # clear up memory
-        self.csv_file = None
-        
         self.x_tensor = torch.tensor(X_data, dtype=torch.float32)
         self.y_tensor = torch.tensor(Y_data, dtype=torch.float32)
 
         # add the embeddings as last 50 dimensions
         add = self.csv_file["Entities"]
         addTensor = torch.tensor(add, dtype=torch.float32)
+
+        # clear up memory
+        self.csv_file = None
         print (self.x_tensor.shape)
         print (addTensor.shape)
         self.x_tensor = torch.cat((self.x_tensor, addTensor), 1)
