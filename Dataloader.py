@@ -30,8 +30,7 @@ class TweetsCOV19Dataset(Dataset):
         self.preprocess()
         # self.preprocess_normalized()
 
-        # clear up memory
-        self.csv_file = None
+
 
     def preprocess_normalized(self):
         '''Preprocess normalization function for self.csv_file'''
@@ -72,6 +71,10 @@ class TweetsCOV19Dataset(Dataset):
         X_data = self.csv_file.drop(columns=["No. of Retweets", "Entities"], inplace=False).values
         # X_data = self.csv_file.loc[:, self.csv_file.columns != 'No. of Retweets'].values
         Y_data = self.csv_file.loc[:, self.csv_file.columns == 'No. of Retweets'].values
+
+        # clear up memory
+        self.csv_file = None
+        
         self.x_tensor = torch.tensor(X_data, dtype=torch.float32)
         self.y_tensor = torch.tensor(Y_data, dtype=torch.float32)
 
