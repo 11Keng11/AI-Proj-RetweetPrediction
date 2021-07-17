@@ -19,16 +19,19 @@ class TweetsCOV19Dataset(Dataset):
         self._mode = mode
         # hardcoded total number of rows based on self._mode
         if self._mode == "train":
-            totalRows = 13978697
+            self.totalRows = 13978691
         elif self._mode == "val":
-            totalRows = 2995436
+            self.totalRows = 2995431
         elif self._mode == "test":
-            totalRows = 2995435
-        with tqdm(total=totalRows, desc="Loading {} data".format(mode)) as bar:
+            self.totalRows = 2995431
+        with tqdm(total=self.totalRows, desc="Loading {} data".format(mode)) as bar:
             self.csv_file = pd.read_csv(self.get_dataset_path(self._mode), skiprows=lambda x: bar.update(1) and False)
 
         self.preprocess()
         # self.preprocess_normalized()
+
+        # clear up memory
+        self.csv_file = None
 
     def preprocess_normalized(self):
         '''Preprocess normalization function for self.csv_file'''
@@ -79,6 +82,7 @@ class TweetsCOV19Dataset(Dataset):
         print (addTensor.shape)
         self.x_tensor = torch.cat((self.x_tensor, addTensor), 1)
 
+
     def get_dataset_path(self, _mode):
         '''Get the path to a particular dataset file'''
         # dataset_path = os.path.join("datasets", "filtered_{}.csv".format(_mode))
@@ -93,7 +97,8 @@ class TweetsCOV19Dataset(Dataset):
 
     def __len__(self):
         '''Return count of dataset'''
-        return len(self.csv_file)
+        # return len(self.csv_file)
+        return self.totalRows
 
     def __getitem__(self, index):
         return self.x_tensor[index], self.y_tensor[index]

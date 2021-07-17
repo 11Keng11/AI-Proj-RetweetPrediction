@@ -27,7 +27,7 @@ class MSLELoss(nn.Module):
         self.mse = nn.MSELoss()
 
     def forward(self, pred, actual):
-        return self.mse(torch.log(pred+1+1e-6), torch.log(actual+1))
+        return self.mse(torch.log(abs(pred+1+1e-6)), torch.log(actual+1))
 
 def getWordEmbeddings():
     '''function uses pre-trained word embeddings to return a dictionary'''
