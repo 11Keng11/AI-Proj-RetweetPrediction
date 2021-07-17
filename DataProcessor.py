@@ -90,6 +90,35 @@ def count_URLs(value):
 #     else:
 #         return np.random.rand(1,50).astype(np.float32).flatten()
 
+def entityEmbed(value):
+    embeddings = getWordEmbeddings()
+    # loop through the values
+    data = []
+    for v in tqdm(value, desc="Assigning Word Embeddings"):
+        entities = extractEntityWords(v)
+        if entities != "null;":
+            # no entity -> fill in zeros
+            d = np.zeros(50).tolist()
+        else:
+            # get the word embeddings
+            d = np.zeros(50)
+            count = 0
+            for entity in entities:
+                for word in entity:
+                    count += 1
+                    if word in embeddings:
+                        d += embeddings[word]
+                    else:
+                        d += np.random.rand(50)
+            d /= count
+            d = d.tolist()
+
+        data.append(d)
+    return data
+
+
+
+
 def extractEntityWords(value):
     if value != "null;":
         entities_list = value.split(";")
@@ -117,7 +146,16 @@ def processData(df):
     # count URLs
     df["URLs"] = df["URLs"].apply(count_URLs, 1)
     # handle entities
-    df["Entities"] = df["Entities"].apply(lambda x: extractEntityWords(x), 1)
+    # df["Entities"] = df["Entities"].apply(lambda x: extractEntityWords(x), 1)
+    data = entityEmbed(df["Entities"].values)
+    embedColNames = ["feat" + str(x) for x in range(50)]
+    tempDf = pd.DataFrame(data, columns=embedColNames)
+
+    # merge the df and drop the entities
+    df.drop(columns=["Entities"], inplace=True)
+    df = pd.concat([df, tempDf], axis=1)
+    del tempDf
+    print (df.shape)
 
     return df
 

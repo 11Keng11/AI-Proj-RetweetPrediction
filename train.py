@@ -82,20 +82,20 @@ def saveRunArgs(args):
             f.write("{}: {}\n".format(key, getattr(args, key)))
 
 
-def saveTrainingStats(epoch, trainLoss, valLoss, accuracy, modelName):
+def saveTrainingStats(epoch, trainLoss, valLoss, modelName):
     modelFolder = "Models"
     saveDir = os.path.join(modelFolder, modelName)
     savePath = os.path.join(saveDir, "trainingStats.csv")
     # make csv file for saving model training stats if it does not exist
     if not os.path.exists(savePath):
         with open(savePath, "a", encoding="utf-8") as f:
-            headers = ["epoch", "train loss", "val loss", "accuracy"]
+            headers = ["epoch", "train loss", "val loss"]
             f.write(",".join(headers))
             f.write("\n")
 
     # finally open the csv file and add stuff to it
     with open(savePath, "a", encoding="utf-8") as f:
-        data = ",".join([str(epoch), str(trainLoss), str(valLoss), str(accuracy)])
+        data = ",".join([str(epoch), str(trainLoss), str(valLoss)])
         f.write(data+"\n")
 
 def saveModel(model, modelName, epoch):
@@ -174,7 +174,7 @@ def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, exp
                     tbar.set_postfix(loss = trainLoss)
 
             # Evaluation
-            accuracy = 0
+            # accuracy = 0
             validLoss = 0
             model.eval()
             with tqdm(valLoader, desc="Epoch: {} Valid".format(epoch), leave=False) as vbar:
@@ -186,7 +186,7 @@ def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, exp
                     loss = criterion(pred, target.float())
                     validLoss += loss.cpu().item()
                     pred = pred.cpu()
-                    accuracy += torch.sum(pred.cpu().int() == target.cpu().int()).item()
+                    # accuracy += torch.sum(pred.cpu().int() == target.cpu().int()).item()
                     # print ("PRED: ", pred)
                     # for index, p in enumerate(pred):
                     #     if int(p) == target[index]:
@@ -197,17 +197,17 @@ def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, exp
 
             trainLoss /= int(len(trainLoader.dataset)/batch_size)
             validLoss /= int(len(valLoader.dataset)/batch_size)
-            accuracy /= len(valLoader.dataset)
+            # accuracy /= len(valLoader.dataset)
 
-            ebar.set_description("Epoch: {:3}/{:3} Train Loss: {:.4f} Validation Loss: {:.4f} Accuracy: {:.2f}%".format(
-                epoch, n_epochs, trainLoss, validLoss, accuracy*100))
+            ebar.set_description("Epoch: {:3}/{:3} Train Loss: {:.4f} Validation Loss: {:.4f}".format(
+                epoch, n_epochs, trainLoss, validLoss))
 
             # if accuracy > bestAcc:
             #     bestAcc = accuracy
             saveModel(model, experiment_name, epoch)
 
             # save states
-            saveTrainingStats(epoch, trainLoss, validLoss, accuracy, experiment_name)
+            saveTrainingStats(epoch, trainLoss, validLoss, experiment_name)
 
 
 
@@ -222,8 +222,7 @@ if __name__ == "__main__":
     # save running arguments
     saveRunArgs(args)
     # load in model
-    # model = Net(10, 64)
-    model = Net(58, 64)
+    model = Net(10)
     # train!
     try:
         train(model, args.epoch, args.batch, args.learningrate, optimizer, args.name)
