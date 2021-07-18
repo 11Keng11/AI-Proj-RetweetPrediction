@@ -120,10 +120,10 @@ def saveModel(model, optimizer, trainLoss, valLoss, modelName, epoch):
                 "valLoss": valLoss,
                 }, savePath)
 
-def saveBestModel(model):
+def saveBestModel(model, modelName):
     '''Specific function to save the best model so far'''
     modelFolder = "Models"
-    saveDir = os.path.join(modelFolder, "BestModel.pth")
+    saveDir = os.path.join(modelFolder, modelName, "BestModel.pth")
     torch.save(model.state_dict(), saveDir)
 
 def getChosenOptimizer(opt):
@@ -238,7 +238,7 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
 
             if valLoss < bestValLoss:
                 bestValLoss = valLoss
-                saveBestModel(model)
+                saveBestModel(model, modelName)
 
             # save model every epoch for resuming in future
             saveModel(model, optimizer, trainLoss, valLoss, experiment_name, epoch)
