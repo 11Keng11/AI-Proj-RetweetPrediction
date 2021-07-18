@@ -56,6 +56,12 @@ def getModelCheckpoint(modelName):
     print ("Loading Checkpoint: {}".format(modelSaves[-1]))
     return torch.load(modelSaves[-1])
 
+def getBestModel(modelName):
+    '''Function returns best model.pth'''
+    modelFolder = "Models"
+    saveDir = os.path.join(modelFolder, modelName, "BestModel.pth")
+    return torch.load(saveDir)
+
 def getTrainingStats(modelName):
     '''Function returns model training stats as a df'''
     modelFolder = "Models"

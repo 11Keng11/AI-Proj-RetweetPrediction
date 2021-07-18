@@ -37,7 +37,7 @@ def runTestOnModel(checkpoint, batch_size):
     '''Run model on test set and conduct plots on the training stats
     '''
     model = Net(10)
-    model.load_state_dict(checkpoint["Model"])
+    model.load_state_dict(checkpoint)
 
     # get test loader
     testLoader = get_data_loader(mode="test", batch_size=batch_size)
@@ -83,7 +83,7 @@ def plotTrainingStats(modelName):
 def evaluate(modelName, batch_size):
     '''Evaluate the given model with test data'''
     # load in model checkpoint
-    checkpoint = getModelCheckpoint(modelName)
+    checkpoint = getBestModel(modelName)
     # run test on model
     testLoss = runTestOnModel(checkpoint, batch_size)
     # Scores
