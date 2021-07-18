@@ -124,7 +124,7 @@ def saveBestModel(model):
     '''Specific function to save the best model so far'''
     modelFolder = "Models"
     saveDir = os.path.join(modelFolder, "BestModel.pth")
-    torch.save(model.state_dict())
+    torch.save(model.state_dict(), saveDir)
 
 def getChosenOptimizer(opt):
     '''Get corresponding pytorch optimizer based on argparse input'''
