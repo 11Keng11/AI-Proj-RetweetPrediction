@@ -238,7 +238,7 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
 
             if valLoss < bestValLoss:
                 bestValLoss = valLoss
-                saveBestModel(model, modelName)
+                saveBestModel(model, experiment_name)
 
             # save model every epoch for resuming in future
             saveModel(model, optimizer, trainLoss, valLoss, experiment_name, epoch)
