@@ -5,62 +5,93 @@ with reference to: https://onlinelibrary.wiley.com/doi/full/10.4218/etrij.14.011
 import os
 import torch
 import argparse
-# import seaborn as sns
-# from model import PCRNN
+from glob import glob
+import re
+from Regression_NN_1 import Net
 from Dataloader import get_data_loader
-from utils import RMSLELoss # custom loss function
+from utils import *
 from tqdm import tqdm
-# import matplotlib.pyplot as plt
-import numpy as np
-from sklearn.metrics import  accuracy_score, f1_score, recall_score, precision_score
+import plotly.express as px
 
 #========== ARGPARSE BLOCK ==========#
+def checkIfModelNameExists(parser, arg):
+    modelFolder = "Models"
+    saveDir = os.path.join(modelFolder, arg)
+    if os.path.exists(saveDir):
+        return arg
+    else:
+        raise argparse.ArgumentTypeError("No such model name: {} exists!".format(arg))
+        return
+
 parser = argparse.ArgumentParser()
-parser.add_argument("-m", "--model", help="model file to be used for evaluation", type=str, required=True)
+parser.add_argument("-n", "--name", help="Training Name to load in data on", type=lambda x: checkIfModelNameExists(parser, x), required=True)
+parser.add_argument("-b", "--batch", help="Test batch size", type=int, default=65536)
+# parser.add_argument("-m", "--model", help="model file to be used for evaluation", type=str, required=True)
 
 def parserSummary(args):
-    print ("Evaluating #Retweets Model: {}.".format(args.model))
+    print ("Evaluating #Retweets Model from model name: {}.".format(args.name))
+    print ("Batch Size: {}".format(args.batch))
 #======= END OF ARGPARSE BLOCK =======#
 
-def runTestOnModel(modelPath):
-    '''Run model on test set and
-    return a list of predictions, truths and test loss
+def runTestOnModel(checkpoint, batch_size):
+    '''Run model on test set and conduct plots on the training stats
     '''
-    assert modelPath, "No Model Path provided"
-    # model = MODEL()
-    model.load_state_dict(torch.load(modelPath))
-    testLoader = get_data_loader(mode="test", batch_size=1)
+    model = Net(10)
+    model.load_state_dict(checkpoint["Model"])
 
+    # get test loader
+    testLoader = get_data_loader(mode="test", batch_size=batch_size)
+
+    # move model to gpu
+    model = model.to("cuda")
+
+    # set the model to eval
     model.eval()
-    predictions = []
-    truths = []
     testLoss = 0
-    criterion = RMSLELoss()
-    for input_x, target in tqdm(testLoader, desc="Testing..."):
-        output = model(input_x)
-        actuals.append(target.detach().numpy())
-        predictions.append(output.detach().numpy())
-        # calculate loss
-        testLoss += criterion(output, target)
+    criterion = MSLELoss()
+    with tqdm(testLoader, desc="Testing", leave=False) as testBar:
+        for input_x, target in testBar:
+            # Move to gpu
+            input_x = input_x.to("cuda")
+            target = target.to("cuda")
+            output = model(input_x)
+            # calculate loss
+            loss = criterion(output, target)
+            testLoss += loss.cpu().item()
+            testBar.set_postfix(loss = testLoss)
+    # average the test loss
+    testLoss /=  int(len(testLoader.dataset)/batch_size)
+    return testLoss
 
-    return predictions, truths, testLoss
+def plotTrainingStats(modelName):
+    # get training stats
+    df = getTrainingStats(modelName)
+    fig = px.scatter(df, x="epoch", y=["train loss", "val loss"])
+    # update axis, titles
+    fig.update_layout(
+                        title="{} Training Stats".format(modelName),
+                        xaxis_title="Num Epoch",
+                        yaxis_title="Mean Squared Log Error",
+                        font=dict(
+                            family="Courier New, monospace",
+                            size=18,
+                            color="RebeccaPurple"
+                        )
+                    )
+    fig.show()
 
-
-def evaluate(modelPath):
+def evaluate(modelName, batch_size):
     '''Evaluate the given model with test data'''
-    pass
-    preds, truths, testLoss = runTestOnModel(modelPath)
+    # load in model checkpoint
+    checkpoint = getModelCheckpoint(modelName)
+    # run test on model
+    testLoss = runTestOnModel(checkpoint, batch_size)
     # Scores
-    f1 = f1_score(truths, preds, average="weighted")
-    recall = recall_score(truths, preds, average="weighted")
-    precision = precision_score(truths, preds, average="weighted")
-    accuracy = accuracy_score(truths, preds)
-    print("F1: {:6f}".format(f1))
-    print("Recall: {:6f}".format(recall))
-    print("Precision: {:6f}".format(precision))
-    print("Accuracy: {:6f}".format(accuracy))
+    print ("Test Loss: {}".format(testLoss))
+    # plot training stats
+    plotTrainingStats(modelName)
 
 if __name__ == "__main__":
     args = parser.parse_args()
     parserSummary(args)
-    evaluate(args.model)
+    evaluate(args.name, args.batch)

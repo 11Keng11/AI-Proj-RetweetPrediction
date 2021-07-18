@@ -7,13 +7,15 @@
 import torch
 from Dataloader import get_data_loader
 # from model import PCRNN # do we have model file?
-from utils import RMSLELoss, MSLELoss # custom loss function
+from utils import *
 import os
 import time
 import math
 from tqdm import tqdm
 import argparse
 from Regression_NN_1 import Net
+from glob import glob
+import re
 
 ## PYTORCH DEBUG TOOLS
 torch.autograd.set_detect_anomaly(False)
@@ -38,11 +40,16 @@ def parserSummary(args):
 
 #======= END OF ARGPARSE BLOCK =======#
 
+#========== GLOBALS BLOCK ==========#
+NUM_INPUT_FEATS = 10
+#====== END OF GLOBALS BLOCK =======#
+
 #======= HELPER FUNCTIONS BLOCK =======#
 def initTrainingSession(sessionName):
     ''' Function calls to make the model directory for model
     saving purposes with session name as input'''
     modelFolder = "Models"
+    RESUME_TRAIN = False
     if not os.path.isdir(modelFolder):
         # folder for saving models dont exist yet
         os.mkdir(modelFolder)
@@ -56,13 +63,11 @@ def initTrainingSession(sessionName):
         if check == "N" or check == "n":
             quit()
         elif check == "Y" or check == "y":
-            modelFolder = "Models"
-            saveDir = os.path.join(modelFolder, sessionName)
-            savePath = os.path.join(saveDir, "trainingStats.csv")
-            os.remove(savePath)
-            print ("Removed: {}".format(savePath))
+            print ("Resume Training: TRUE")
+            RESUME_TRAIN = True
 
     print ("\nTraining session successfully inited!")
+    return RESUME_TRAIN
 
 def checkIfTrainingSessionExists(modelName):
     modelFolder = "Models"
@@ -81,7 +86,6 @@ def saveRunArgs(args):
         for key in vars(args):
             f.write("{}: {}\n".format(key, getattr(args, key)))
 
-
 def saveTrainingStats(epoch, trainLoss, valLoss, modelName):
     modelFolder = "Models"
     saveDir = os.path.join(modelFolder, modelName)
@@ -98,7 +102,7 @@ def saveTrainingStats(epoch, trainLoss, valLoss, modelName):
         data = ",".join([str(epoch), str(trainLoss), str(valLoss)])
         f.write(data+"\n")
 
-def saveModel(model, modelName, epoch):
+def saveModel(model, optimizer, trainLoss, valLoss, modelName, epoch):
     '''Saves the current model state dict based on modelname input
      and current epoch'''
     modelFolder = "Models"
@@ -108,8 +112,13 @@ def saveModel(model, modelName, epoch):
     if not os.path.exists(saveDir):
         os.mkdir(saveDir)
     savePath = os.path.join(saveDir, "{}_epoch_{}.pth".format(modelName, epoch) )
-    torch.save(model.state_dict(), savePath)
-    # print ("Model: {} saved in {}".format(modelName, savePath))
+    torch.save({
+                "Epoch": epoch,
+                "Model": model.state_dict(),
+                "Optimizer": optimizer.state_dict(),
+                "trainLoss": trainLoss,
+                "valLoss": valLoss,
+                }, savePath)
 
 def getChosenOptimizer(opt):
     '''Get corresponding pytorch optimizer based on argparse input'''
@@ -123,27 +132,42 @@ def getChosenOptimizer(opt):
         raise Exception("Invalid optimizer input!")
 #==== END OF HELPER FUNCTIONS BLOCK ====#
 
-def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, experiment_name="test"):
-    '''Train the model given'''
-    if model is None:
-        raise Exception("MODEL not provided!")
+def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, experiment_name="test"):
+    '''Train'''
+    # make model
+    model = Net(NUM_INPUT_FEATS)
+
+    # declare optimizer and criterion
+    optimizer = o(model.parameters(), lr=lr)
+
+    # declare init vars
+    start_epoch = 1
+    bestValLoss = 1e20
+
+    if RESUME_TRAIN:
+        # we have to load in the model.pth
+        checkpoint = getModelCheckpoint(experiment_name)
+        model.load_state_dict(checkpoint["Model"])
+        optimizer.load_state_dict(checkpoint["Optimizer"])
+        start_epoch = checkpoint["Epoch"] + 1
+        bestValLoss = checkpoint["valLoss"]
+
 
     # get the respective data loaders
     trainLoader = get_data_loader(mode="train", batch_size=batch_size)
     valLoader = get_data_loader(mode="val", batch_size=batch_size)
 
-    # declare optimizer and criterion
-    optimizer = o(model.parameters(), lr=lr)
+
     # criterion = RMSLELoss()
     criterion = MSLELoss()
     # criterion = torch.nn.MSELoss()
     # criterion = torch.nn.L1Loss()
 
-    bestValLoss = 1e20
+
     # move model to gpu
     model = model.to("cuda")
 
-    with tqdm(range(1, n_epochs+1)) as ebar:
+    with tqdm(range(start_epoch, start_epoch + n_epochs)) as ebar:
 
         for epoch in ebar:
             # training section
@@ -179,7 +203,7 @@ def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, exp
 
             # Evaluation
             # accuracy = 0
-            validLoss = 0
+            valLoss = 0
             model.eval()
             with tqdm(valLoader, desc="Epoch: {} Valid".format(epoch), leave=False) as vbar:
                 for input_x, target in vbar:
@@ -188,30 +212,30 @@ def train(model=None, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, exp
                     target = target.to("cuda")
                     pred = model(input_x.float())
                     loss = criterion(pred, target.float())
-                    validLoss += loss.cpu().item()
+                    valLoss += loss.cpu().item()
                     pred = pred.cpu()
                     # accuracy += torch.sum(pred.cpu().int() == target.cpu().int()).item()
                     # print ("PRED: ", pred)
                     # for index, p in enumerate(pred):
                     #     if int(p) == target[index]:
                     #         accuracy += 1
-                    vbar.set_postfix(loss = validLoss)
+                    vbar.set_postfix(loss = valLoss)
 
             # print (accuracy)
 
             trainLoss /= int(len(trainLoader.dataset)/batch_size)
-            validLoss /= int(len(valLoader.dataset)/batch_size)
+            valLoss /= int(len(valLoader.dataset)/batch_size)
             # accuracy /= len(valLoader.dataset)
 
             ebar.set_description("Epoch: {:3}/{:3} Train Loss: {:.4f} Validation Loss: {:.4f}".format(
-                epoch, n_epochs, trainLoss, validLoss))
+                epoch, start_epoch+n_epochs-1, trainLoss, valLoss))
 
-            if validLoss < bestValLoss:
-                bestValLoss = validLoss
-                saveModel(model, experiment_name, epoch)
+            if valLoss < bestValLoss:
+                bestValLoss = valLoss
+                saveModel(model, optimizer, trainLoss, valLoss, experiment_name, epoch)
 
             # save states
-            saveTrainingStats(epoch, trainLoss, validLoss, experiment_name)
+            saveTrainingStats(epoch, trainLoss, valLoss, experiment_name)
 
 
 
@@ -222,13 +246,11 @@ if __name__ == "__main__":
     # get Optimizer
     optimizer = getChosenOptimizer(args.optimizer)
     # initialize the training session
-    initTrainingSession(args.name)
+    RESUME_TRAIN = initTrainingSession(args.name)
     # save running arguments
     saveRunArgs(args)
-    # load in model
-    model = Net(10)
     # train!
     try:
-        train(model, args.epoch, args.batch, args.learningrate, optimizer, args.name)
+        train(RESUME_TRAIN, args.epoch, args.batch, args.learningrate, optimizer, args.name)
     except KeyboardInterrupt:
         exit()
