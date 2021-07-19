@@ -25,26 +25,51 @@ class TweetsCOV19Dataset(Dataset):
         elif self._mode == "test":
             self.totalRows = 2995431
         with tqdm(total=self.totalRows, desc="Loading {} data".format(mode)) as bar:
-            self.csv_file = pd.read_csv(self.get_dataset_path(self._mode), skiprows=lambda x: bar.update(1) and False)
+            self.csv_file = pd.read_csv(self.get_dataset_path(self._mode), skiprows=lambda x: bar.update(1) and False, index_col=[0])
 
-        # self.preprocess()
-        self.preprocess_normalized()
+        self.preprocess()
+        # self.preprocess_normalized()
+
+        # clear up memory
+        self.csv_file = None
 
 
 
     def preprocess_normalized(self):
         '''Preprocess normalization function for self.csv_file'''
-        # remove the 2 problem features
-        self.csv_file = self.csv_file[self.csv_file.columns[~self.csv_file.columns.isin(["Tweet ID", "Timestamp"])]]
+        print ("Processing {} data".format(self._mode))
+        # remove the problem features
+        self.csv_file.drop(columns=["Tweet ID"], inplace=True)
+
+        def getWeekday(values):
+            data = []
+            for value in tqdm(values):
+                weekday = datetime.fromtimestamp(value).strftime("%A")
+                weekdayEnum = {"Monday":0,
+                               "Tuesday":1,
+                               "Wednesday":2,
+                               "Thursday":3,
+                               "Friday":4,
+                               "Saturday":5,
+                               "Sunday":6}
+                data.append(weekdayEnum[weekday])
+            return pd.Series(weekdayEnum[weekday])
+
+        # change time to weekday
+        self.csv_file["Timestamp"] = getWeekday(self.csv_file["Timestamp"].values)
+        # self.csv_file["Timestamp"] = self.csv_file["Timestamp"].apply(getWeekday)
+        print ("Timestamp converted to weekday")
 
         # create a normalized_df here
         normalized_df = (self.csv_file-self.csv_file.min())/(self.csv_file.max()-self.csv_file.min())
+        print ("Normalized dataframe")
 
-        X_data = normalized_df.loc[:, normalized_df.columns != 'No. of Retweets'].values
-        Y_data = self.csv_file.loc[:, self.csv_file.columns == 'No. of Retweets'].values
+        # X_data = normalized_df.loc[:, normalized_df.columns != 'No. of Retweets'].values
+        # Y_data = self.csv_file.loc[:, self.csv_file.columns == 'No. of Retweets'].values
 
-        self.x_tensor = torch.tensor(X_data, dtype=torch.float32)
-        self.y_tensor = torch.tensor(Y_data, dtype=torch.float32)
+        self.x_tensor = torch.tensor(normalized_df.drop(columns=["No. of Retweets"], inplace=False).values, dtype=torch.float16)
+        self.y_tensor = torch.tensor(self.csv_file["No. of Retweets"].values, dtype=torch.float16)
+        print ("Converted to tensor!")
 
     def preprocess(self):
         # embeddings = getWordEmbeddings()
@@ -72,9 +97,6 @@ class TweetsCOV19Dataset(Dataset):
         X_data = self.csv_file.drop(columns=["No. of Retweets"], inplace=False).values
         # X_data = self.csv_file.loc[:, self.csv_file.columns != 'No. of Retweets'].values
         Y_data = self.csv_file.loc[:, self.csv_file.columns == 'No. of Retweets'].values
-
-        # clear up memory
-        self.csv_file = None
 
         self.x_tensor = torch.tensor(X_data, dtype=torch.float32)
         self.y_tensor = torch.tensor(Y_data, dtype=torch.float32)
@@ -113,10 +135,10 @@ class TweetsCOV19Dataset(Dataset):
 def get_data_loader(mode="train", batch_size=64):
     '''Get the Dataloader, mode can be train or validation'''
     dataset = TweetsCOV19Dataset(mode=mode)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True) #num workers > 0 & pin_memory = True means dataloading will be async
+    return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True), dataset.x_tensor.shape[1] #num workers > 0 & pin_memory = True means dataloading will be async
 
 if __name__ == "__main__":
     loader = get_data_loader("test", 1)
     x, y = next(iter(loader))
-    print (x.shape)
-    print (y.shape)
+    print (x)
+    print (y)

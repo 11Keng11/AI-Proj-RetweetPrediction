@@ -40,7 +40,7 @@ def runTestOnModel(checkpoint, batch_size):
     model.load_state_dict(checkpoint)
 
     # get test loader
-    testLoader = get_data_loader(mode="test", batch_size=batch_size)
+    testLoader, _ = get_data_loader(mode="test", batch_size=batch_size)
 
     # move model to gpu
     model = model.to("cuda")

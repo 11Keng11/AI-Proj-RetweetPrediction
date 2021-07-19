@@ -40,9 +40,6 @@ def parserSummary(args):
 
 #======= END OF ARGPARSE BLOCK =======#
 
-#========== GLOBALS BLOCK ==========#
-NUM_INPUT_FEATS = 10
-#====== END OF GLOBALS BLOCK =======#
 
 #======= HELPER FUNCTIONS BLOCK =======#
 def initTrainingSession(sessionName):
@@ -140,8 +137,13 @@ def getChosenOptimizer(opt):
 
 def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, experiment_name="test"):
     '''Train'''
+
+    # get the respective data loaders
+    trainLoader, inputSize = get_data_loader(mode="train", batch_size=batch_size)
+    valLoader, _ = get_data_loader(mode="val", batch_size=batch_size)
+
     # make model
-    model = Net(NUM_INPUT_FEATS)
+    model = Net(inputSize)
 
     # declare optimizer and criterion
     optimizer = o(model.parameters(), lr=lr)
@@ -159,9 +161,7 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
         bestValLoss = checkpoint["valLoss"]
 
 
-    # get the respective data loaders
-    trainLoader = get_data_loader(mode="train", batch_size=batch_size)
-    valLoader = get_data_loader(mode="val", batch_size=batch_size)
+
 
 
     # criterion = RMSLELoss()
