@@ -25,7 +25,7 @@ torch.autograd.profiler.emit_nvtx(False)
 #========== ARGPARSE BLOCK ==========#
 parser = argparse.ArgumentParser()
 parser.add_argument("-e", "--epoch", help="num of epochs for training", type=int, default=100)
-parser.add_argument("-b", "--batch", help="batch size for training", type=int, default=65536)
+parser.add_argument("-b", "--batch", help="batch size for training", type=int, default=8192)
 parser.add_argument("-n", "--name", help="training session name", type=str, default="training1")
 parser.add_argument("-lr", "--learningrate", help="learning rate for model training", type=float, default=1e-3)
 parser.add_argument("-o", "--optimizer", help="optimizer for model training", type=str, choices=["SGD", "ADAM", "RMSPROP"], default="SGD")

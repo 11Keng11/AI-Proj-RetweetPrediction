@@ -60,12 +60,15 @@ def loadData(filePath):
 def counter(values, name, splitBy):
     '''Function returns the number of occurences'''
     data = []
+    boolean = []
     for value in tqdm(values, desc="Counting {}".format(name)):
         if value != "null;":
             data.append(sum(1 for x in [x for x in value.split(splitBy) if x]))
+            boolean.append(1)
         else:
             data.append(0)
-    return data
+            boolean.append(0)
+    return data, boolean
 
 # def count_hashtags_mentions(values):
 #     for value in tqdm(values, desc="Counting":
@@ -143,23 +146,31 @@ def extractEntityWords(value):
     else:
         return "null;"
 
-def getWeekday(values):
+def timeProcesser(values):
     '''Function converts given datetime to a datetimeobj and
-    returns the corresponding weekday class
+    returns the corresponding hour and weekday
     '''
-    data = []
-    for value in tqdm(values, desc="Converting to weekday"):
+    weekdays = []
+    hours = []
+    isWeekend = []
+    for value in tqdm(values, desc="Processing Timestamp"):
         datetimeObj = datetime.strptime(value, '%a %b %d %X %z %Y')
         weekday = datetimeObj.strftime("%A")
-        weekdayEnum = {"Monday":0,
-                       "Tuesday":1,
-                       "Wednesday":2,
-                       "Thursday":3,
-                       "Friday":4,
-                       "Saturday":5,
-                       "Sunday":6}
-        data.append(weekdayEnum[weekday])
-    return pd.Series(weekdayEnum[weekday])
+        hour = int(datetimeObj.strftime("%H")) + 1
+        weekdayEnum = {"Monday":1,
+                       "Tuesday":2,
+                       "Wednesday":3,
+                       "Thursday":4,
+                       "Friday":5,
+                       "Saturday":6,
+                       "Sunday":7}
+        weekdays.append(weekdayEnum[weekday])
+        hours.append(hour)
+        if weekdayEnum[weekday] < 6:
+            isWeekend.append(0)
+        else:
+            isWeekend.append(1)
+    return weekdays, hours, isWeekend
 
 def getFollowerFriendRatio(followers, friends):
     data = []
@@ -168,22 +179,66 @@ def getFollowerFriendRatio(followers, friends):
         data.append(follower/(friend+1))
     return data
 
+def getFavouriteFollowerRatio(favourites, followers):
+    data = []
+    for index, favourite in tqdm(enumerate(favourites), total=len(favourites), desc="Calculate Favourite Follower Ratio"):
+        follower = followers[index]
+        data.append(favourite/(follower+1))
+    return data
+
+def sentimentProcesser(values):
+    overall = []
+    positive = []
+    negative = []
+    for value in tqdm(values, desc="Processing Sentiments"):
+        pos = int(value.split(" ")[0])
+        neg = int(value.split(" ")[1])
+        overall.append(pos + neg)
+        positive.append(pos)
+        negative.append(neg)
+    return overall, positive, negative
+
+def countTweetLength(numHashtags, numEntities, numMentions, numUrls):
+    data = []
+    for index, value in tqdm(enumerate(numHashtags), total=len(numHashtags), desc="Counting Tweet Length"):
+        total = value + numEntities[index] + numMentions[index] + numUrls[index]
+        data.append(total)
+    return data
+
 def processData(df):
     # fill in nan values
     df.fillna('null;', inplace=True)
     # remove the problem features
     df.drop(columns=["Tweet ID", "Username"], inplace=True)
-    # Average the sentiment feature
-    df["Sentiment"] = df["Sentiment"].apply(lambda x: sum([int(y) for y in x.split(" ")])/2)
+    # Sentiment Processing
+    overallSentiment, positiveSentiment, negativeSentiment = sentimentProcesser(df["Sentiment"].values)
+    df["Sentiment"] = overallSentiment
+    df["Positive"] = positiveSentiment
+    df["Negative"] = negativeSentiment
     # count number hastags, mentions, Urls and entities
-    df["Hashtags"] = counter(df["Hashtags"].values, "hashtags", " ")
-    df["Mentions"] = counter(df["Mentions"].values, "mentions", " ")
-    df["URLs"] = counter(df["URLs"].values, "urls", ":-:")
-    df["Entities"] = counter(df["Entities"].values, "entities", ";")
-    # get weekday timestamp
-    df["Timestamp"] = getWeekday(df["Timestamp"].values)
+    numHashtags, hasHashtag = counter(df["Hashtags"].values, "hashtags", " ")
+    df["Hashtags"] = numHashtags
+    df["hasHashtag"] = hasHashtag
+    numMentions, hasMentions = counter(df["Mentions"].values, "mentions", " ")
+    df["Mentions"] = numMentions
+    df["hasMentions"] = hasMentions
+    numUrls, hasUrls = counter(df["URLs"].values, "urls", ":-:")
+    df["URLs"] = numUrls
+    df["hasUrls"] = hasUrls
+    numEntities, hasEntities = counter(df["Entities"].values, "entities", ";")
+    df["Entities"] = numEntities
+    df["hasEntities"] = hasEntities
+    # process timestamp
+    weekday, hour, isWeekend = timeProcesser(df["Timestamp"].values)
+    df["Timestamp"] = weekday
+    df["Hour"] = hour
+    df["isWeekend"] = isWeekend
     # get follower friend ratio
-    df["FollowerFriendRatio"] = getFollowerFriendRatio(df["No. of Followers"].values, df["No. of Friends"])
+    df["FollowerFriendRatio"] = getFollowerFriendRatio(df["No. of Followers"].values, df["No. of Friends"].values)
+    # get favourite follower ratio
+    df["FavouriteFollowerRatio"] = getFavouriteFollowerRatio(df["No. of Favourites"].values, df["No. of Followers"].values)
+    # count the tweet length
+    df["TweetLength"] = countTweetLength(df["Hashtags"].values, df["Entities"].values, df["Mentions"].values, df["URLs"].values)
     # normalize the features
     df["No. of Followers"] = (df["No. of Followers"]-df["No. of Followers"].min())/(df["No. of Followers"].max()-df["No. of Followers"].min())
     df["No. of Friends"] = (df["No. of Friends"]-df["No. of Friends"].min())/(df["No. of Friends"].max()-df["No. of Friends"].min())
@@ -206,6 +261,9 @@ if __name__ == "__main__":
     df = loadData(args.input)
     # process the df
     df = processData(df)
+    # check the data
+    print (df.columns)
+    print (df.sample(5))
     # save the df
     print ("Complete! Shape: {}".format(df.shape))
     save2CSV(df, args.output)

@@ -113,8 +113,8 @@ class TweetsCOV19Dataset(Dataset):
 
     def get_dataset_path(self, _mode):
         '''Get the path to a particular dataset file'''
-        dataset_path = os.path.join("datasets", "filtered_{}.csv".format(_mode))
-        # dataset_path = os.path.join("datasets", "try_{}.csv".format(_mode))
+        # dataset_path = os.path.join("datasets", "filtered_{}.csv".format(_mode))
+        dataset_path = os.path.join("datasets", "processed_{}.csv".format(_mode))
         return dataset_path
 
     def __str__(self):

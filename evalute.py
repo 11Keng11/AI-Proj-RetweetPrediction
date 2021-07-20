@@ -25,7 +25,7 @@ def checkIfModelNameExists(parser, arg):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-n", "--name", help="Training Name to load in data on", type=lambda x: checkIfModelNameExists(parser, x), required=True)
-parser.add_argument("-b", "--batch", help="Test batch size", type=int, default=65536)
+parser.add_argument("-b", "--batch", help="Test batch size", type=int, default=8192)
 # parser.add_argument("-m", "--model", help="model file to be used for evaluation", type=str, required=True)
 
 def parserSummary(args):
@@ -63,7 +63,7 @@ def runTestOnModel(checkpoint, batch_size):
     testLoss /=  int(len(testLoader.dataset)/batch_size)
     return testLoss
 
-def plotTrainingStats(modelName):
+def plotTrainingStats(modelName, testLoss):
     # get training stats
     df = getTrainingStats(modelName)
     fig = px.scatter(df, x="epoch", y=["train loss", "val loss"])
@@ -78,6 +78,7 @@ def plotTrainingStats(modelName):
                             color="RebeccaPurple"
                         )
                     )
+    fig.add_hline(y=testLoss, line_width=3, line_dash="dash", line_color="green", annotation_text="Test Loss")
     fig.show()
 
 def evaluate(modelName, batch_size):
@@ -89,7 +90,7 @@ def evaluate(modelName, batch_size):
     # Scores
     print ("Test Loss: {}".format(testLoss))
     # plot training stats
-    plotTrainingStats(modelName)
+    plotTrainingStats(modelName, testLoss)
 
 if __name__ == "__main__":
     args = parser.parse_args()
