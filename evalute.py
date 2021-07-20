@@ -67,7 +67,7 @@ def plotTrainingStats(modelName, testLoss):
     # get training stats
     df = getTrainingStats(modelName)
     fig = px.scatter(df, x="epoch", y=["train loss", "val loss"])
-    fig.add_hline(y=testLoss, line_width=3, line_dash="dash", line_color="green", annotation_text="Test Loss")
+    fig.add_hline(y=testLoss, line_width=3, line_dash="dash", line_color="green", annotation_text="Best Model Test Loss")
     # update axis, titles
     fig.update_layout(
                         title="{} Training Stats".format(modelName),

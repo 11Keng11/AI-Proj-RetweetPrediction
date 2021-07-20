@@ -146,7 +146,7 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
     model = Net(inputSize)
 
     # declare optimizer and criterion
-    optimizer = o(model.parameters(), lr=lr)
+    optimizer = o(model.parameters(), lr=lr, weight_decay=1e-3)
 
     # declare init vars
     start_epoch = 1
