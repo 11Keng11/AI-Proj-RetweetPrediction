@@ -36,11 +36,11 @@ def parserSummary(args):
 def runTestOnModel(checkpoint, batch_size):
     '''Run model on test set and conduct plots on the training stats
     '''
-    model = Net(10)
-    model.load_state_dict(checkpoint)
-
     # get test loader
-    testLoader, _ = get_data_loader(mode="test", batch_size=batch_size)
+    testLoader, inputSize = get_data_loader(mode="test", batch_size=batch_size)
+
+    model = Net(inputSize)
+    model.load_state_dict(checkpoint)
 
     # move model to gpu
     model = model.to("cuda")
