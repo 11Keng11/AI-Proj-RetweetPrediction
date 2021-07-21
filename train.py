@@ -13,7 +13,7 @@ import time
 import math
 from tqdm import tqdm
 import argparse
-from Regression_NN_1 import Net
+from Regression_NN_1 import *
 from glob import glob
 import re
 
@@ -23,12 +23,22 @@ torch.autograd.profiler.profile(False)
 torch.autograd.profiler.emit_nvtx(False)
 
 #========== ARGPARSE BLOCK ==========#
+def str_to_bool(value):
+    if isinstance(value, bool):
+        return value
+    if value.lower() in {'false', 'f', '0', 'no', 'n'}:
+        return False
+    elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
+        return True
+    raise ValueError(f'{value} is not a valid boolean value')
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-e", "--epoch", help="num of epochs for training", type=int, default=100)
 parser.add_argument("-b", "--batch", help="batch size for training", type=int, default=8192)
 parser.add_argument("-n", "--name", help="training session name", type=str, default="training1")
 parser.add_argument("-lr", "--learningrate", help="learning rate for model training", type=float, default=1e-3)
 parser.add_argument("-o", "--optimizer", help="optimizer for model training", type=str, choices=["SGD", "ADAM", "RMSPROP"], default="SGD")
+parser.add_argument("-c", "--classifier", type=str_to_bool, default=False)
 
 def parserSummary(args):
     print ("Training #Retweets Model.")
@@ -36,6 +46,7 @@ def parserSummary(args):
     print ("Batch Size: {}".format(args.batch))
     print ("Learning Rate: {}".format(args.learningrate))
     print ("Optimizer: {}".format(args.optimizer))
+    print ("For classifier: {}".format(args.classifier))
     print ("Training session saved as: {}".format(args.name))
 
 #======= END OF ARGPARSE BLOCK =======#
@@ -135,17 +146,20 @@ def getChosenOptimizer(opt):
         raise Exception("Invalid optimizer input!")
 #==== END OF HELPER FUNCTIONS BLOCK ====#
 
-def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, experiment_name="test"):
+def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, experiment_name="test", forClassifier=False):
     '''Train'''
 
     # get the respective data loaders
-    trainLoader, inputSize = get_data_loader(mode="train", batch_size=batch_size)
-    valLoader, _ = get_data_loader(mode="val", batch_size=batch_size)
+    trainLoader, inputSize = get_data_loader(mode="train", batch_size=batch_size, forClassifier=forClassifier)
+    valLoader, _ = get_data_loader(mode="val", batch_size=batch_size, forClassifier=forClassifier)
 
     # make model
-    model = Net(inputSize)
+    if forClassifier:
+        model = Binary_Classifier(inputSize)
+    else:
+        model = Net(inputSize)
 
-    # declare optimizer and criterion
+    # declare optimizer
     optimizer = o(model.parameters(), lr=lr, weight_decay=1e-3)
 
     # declare init vars
@@ -160,15 +174,10 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
         start_epoch = checkpoint["Epoch"] + 1
         bestValLoss = checkpoint["valLoss"]
 
-
-
-
-
-    # criterion = RMSLELoss()
-    criterion = MSLELoss()
-    # criterion = torch.nn.MSELoss()
-    # criterion = torch.nn.L1Loss()
-
+    if forClassifier:
+        criterion = nn.BCELoss()
+    else:
+        criterion = MSLELoss()
 
     # move model to gpu
     model = model.to("cuda")
@@ -260,6 +269,6 @@ if __name__ == "__main__":
     saveRunArgs(args)
     # train!
     try:
-        train(RESUME_TRAIN, args.epoch, args.batch, args.learningrate, optimizer, args.name)
+        train(RESUME_TRAIN, args.epoch, args.batch, args.learningrate, optimizer, args.name, args.classifier)
     except KeyboardInterrupt:
         exit()
