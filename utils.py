@@ -5,6 +5,10 @@ import torch
 from torch import nn
 import numpy as np
 from tqdm import tqdm
+from glob import glob
+import re
+import os
+import pandas as pd
 
 class RMSLELoss(nn.Module):
     '''Root Mean Square Logarithmic Error is a custom loss function
@@ -27,7 +31,7 @@ class MSLELoss(nn.Module):
         self.mse = nn.MSELoss()
 
     def forward(self, pred, actual):
-        return self.mse(torch.log(abs(pred+1+1e-6)), torch.log(actual+1))
+        return self.mse(torch.log(pred+1+1e-6), torch.log(actual+1))
 
 def getWordEmbeddings():
     '''function uses pre-trained word embeddings to return a dictionary'''
@@ -40,6 +44,30 @@ def getWordEmbeddings():
             embeddings[word] = np.array(embeds, dtype="float32")
 
     return embeddings
+
+def getModelCheckpoint(modelName):
+    '''Function returns latest model checkpoint'''
+    modelFolder = "Models"
+    modelSavesFolder = "ModelSaves"
+    saveDir = os.path.join(modelFolder, modelName, modelSavesFolder)
+    modelSaves = glob(saveDir+"/*.pth")
+
+    modelSaves.sort(key=lambda f: int(re.sub("\D", "", f)))
+    print ("Loading Checkpoint: {}".format(modelSaves[-1]))
+    return torch.load(modelSaves[-1])
+
+def getBestModel(modelName):
+    '''Function returns best model.pth'''
+    modelFolder = "Models"
+    saveDir = os.path.join(modelFolder, modelName, "BestModel.pth")
+    return torch.load(saveDir)
+
+def getTrainingStats(modelName):
+    '''Function returns model training stats as a df'''
+    modelFolder = "Models"
+    saveDir = os.path.join(modelFolder, modelName)
+    df = pd.read_csv(os.path.join(saveDir, "trainingStats.csv"))
+    return df
 
 
 if __name__ == "__main__":
