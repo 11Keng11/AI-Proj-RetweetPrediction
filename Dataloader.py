@@ -26,7 +26,7 @@ class TweetsCOV19Dataset(Dataset):
         elif self._mode == "test":
             self.totalRows = 2995431
         with tqdm(total=self.totalRows, desc="Loading {} data".format(mode)) as bar:
-            self.csv_file = pd.read_csv(self.get_dataset_path(self._mode), skiprows=lambda x: bar.update(1) and False, index_col=False)
+            self.csv_file = pd.read_csv(self.get_dataset_path(self._mode), skiprows=lambda x: bar.update(1) and False, index_col=False, dtype=np.float32)
 
         self.preprocess()
         # self.preprocess_normalized()
@@ -91,8 +91,8 @@ class TweetsCOV19Dataset(Dataset):
         X_data = self.csv_file.drop(columns=["No. of Retweets"], inplace=False).values
         Y_data = self.csv_file.loc[:, self.csv_file.columns == 'No. of Retweets'].values
 
-        self.x_tensor = torch.tensor(X_data, dtype=torch.float32)
-        self.y_tensor = torch.tensor(Y_data, dtype=torch.int)
+        self.x_tensor = torch.from_numpy(X_data)
+        self.y_tensor = torch.from_numpy(Y_data)
 
 
 
