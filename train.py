@@ -34,7 +34,7 @@ def str_to_bool(value):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e", "--epoch", help="num of epochs for training", type=int, default=100)
-parser.add_argument("-b", "--batch", help="batch size for training", type=int, default=8192)
+parser.add_argument("-b", "--batch", help="batch size for training", type=int, default=4096)
 parser.add_argument("-n", "--name", help="training session name", type=str, default="training1")
 parser.add_argument("-lr", "--learningrate", help="learning rate for model training", type=float, default=1e-3)
 parser.add_argument("-o", "--optimizer", help="optimizer for model training", type=str, choices=["SGD", "ADAM", "RMSPROP"], default="SGD")
@@ -155,12 +155,12 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
 
     # make model
     if forClassifier:
-        model = Binary_Classifier(inputSize)
+        model = Binary_Classifier2(inputSize)
     else:
         model = Net(inputSize)
 
     # declare optimizer
-    optimizer = o(model.parameters(), lr=lr, weight_decay=1e-3)
+    optimizer = o(model.parameters(), lr=lr)
 
     # declare init vars
     start_epoch = 1
@@ -212,8 +212,6 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
                     # print ("After step")
                     # print ("Loss: {}, grad: {}".format(loss.data, loss.grad))
                     trainLoss += loss.cpu().item()
-                    pred = pred.cpu()
-                    # print ("PRED: ", pred)
                     tbar.set_postfix(loss = trainLoss)
 
             # Evaluation

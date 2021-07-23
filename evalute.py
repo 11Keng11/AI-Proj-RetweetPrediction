@@ -52,7 +52,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
     testLoader, inputSize = get_data_loader(mode="test", batch_size=batch_size, forClassifier=forClassifier)
 
     if forClassifier:
-        model = Binary_Classifier(inputSize)
+        model = Binary_Classifier2(inputSize)
     else:
         model = Net(inputSize)
 
@@ -93,16 +93,20 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
 
     return testLoss
 
-def plotTrainingStats(modelName, testLoss):
+def plotTrainingStats(modelName, testLoss, forClassifier=False):
     # get training stats
     df = getTrainingStats(modelName)
     fig = px.scatter(df, x="epoch", y=["train loss", "val loss"])
     fig.add_hline(y=testLoss, line_width=3, line_dash="dash", line_color="green", annotation_text="Best Model Test Loss")
     # update axis, titles
+    if forClassifier:
+        yAxis = "BCELoss"
+    else:
+        yAxis = "Mean Squared Log Error (MSLE)"
     fig.update_layout(
                         title="{} Training Stats".format(modelName),
                         xaxis_title="Num Epoch",
-                        yaxis_title="Mean Squared Log Error",
+                        yaxis_title=yAxis,
                         font=dict(
                             family="Courier New, monospace",
                             size=18,
@@ -121,7 +125,7 @@ def evaluate(modelName, batch_size, forClassifier=False):
     # Scores
     print ("Test Loss: {}".format(testLoss))
     # plot training stats
-    plotTrainingStats(modelName, testLoss)
+    plotTrainingStats(modelName, testLoss, forClassifier)
 
 if __name__ == "__main__":
     args = parser.parse_args()

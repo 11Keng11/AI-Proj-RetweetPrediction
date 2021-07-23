@@ -150,8 +150,16 @@ def timeProcesser(values):
     '''Function converts given datetime to a datetimeobj and
     returns the corresponding hour and weekday
     '''
-    weekdays = []
-    hours = []
+    weekdays = {
+                "Monday": [],
+                "Tuesday": [],
+                "Wednesday": [],
+                "Thursday": [],
+                "Friday": [],
+                "Saturday": [],
+                "Sunday": []
+                }
+    hours = {"H_{}".format(x):[] for x in range(1, 25)}
     isWeekend = []
     for value in tqdm(values, desc="Processing Timestamp"):
         datetimeObj = datetime.strptime(value, '%a %b %d %X %z %Y')
@@ -164,8 +172,16 @@ def timeProcesser(values):
                        "Friday":5,
                        "Saturday":6,
                        "Sunday":7}
-        weekdays.append(weekdayEnum[weekday])
-        hours.append(hour)
+        for day in weekdays:
+            if day == weekday:
+                weekdays[day].append(1)
+            else:
+                weekdays[day].append(0)
+        for h in hours:
+            if str(h) == hour:
+                hours[h].append(1)
+            else:
+                hours[h].append(0)
         if weekdayEnum[weekday] < 6:
             isWeekend.append(0)
         else:
@@ -230,9 +246,9 @@ def processData(df):
     df["hasEntities"] = hasEntities
     # process timestamp
     weekday, hour, isWeekend = timeProcesser(df["Timestamp"].values)
-    df["Timestamp"] = weekday
-    df["Hour"] = hour
+    df = pd.concat([df, pd.DataFrame(weekday), pd.DataFrame(hour)], axis="columns")
     df["isWeekend"] = isWeekend
+    df.drop(columns=["Timestamp"], inplace=True)
     # get follower friend ratio
     df["FollowerFriendRatio"] = getFollowerFriendRatio(df["No. of Followers"].values, df["No. of Friends"].values)
     # get favourite follower ratio
