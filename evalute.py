@@ -71,6 +71,8 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
         criterion = MSLELoss()
 
     accuracy = 0
+    targets = []
+    preds = []
     with tqdm(testLoader, desc="Testing", leave=False) as testBar:
         for input_x, target in testBar:
             # Move to gpu
@@ -85,13 +87,19 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
                 # calculate prediction
                 accuracy += (output.cpu().detach().numpy().round() == target.cpu().numpy().round()).mean()
 
+            preds.extend(output.cpu().detach().numpy().round().astype(np.int).flatten().tolist())
+            targets.extend(target.cpu().numpy().flatten().tolist())
+
     # average the test loss
     testLoss /=  int(len(testLoader.dataset)/batch_size)
     accuracy /= int(len(testLoader.dataset)/batch_size)
 
     print ("Accuracy: {}".format(accuracy))
 
-    return testLoss
+    print ("Preds: {}".format(preds[:10]))
+    print ("Targets: {}".format(targets[:10]))
+
+    return testLoss, preds, targets
 
 def plotTrainingStats(modelName, testLoss, forClassifier=False):
     # get training stats
@@ -121,11 +129,22 @@ def evaluate(modelName, batch_size, forClassifier=False):
     # load in model checkpoint
     checkpoint = getBestModel(modelName)
     # run test on model
-    testLoss = runTestOnModel(checkpoint, batch_size, forClassifier)
+    testLoss, preds, targets = runTestOnModel(checkpoint, batch_size, forClassifier)
+    # save to file
+    savePredToFile(preds, targets, modelName)
     # Scores
     print ("Test Loss: {}".format(testLoss))
     # plot training stats
     plotTrainingStats(modelName, testLoss, forClassifier)
+
+
+def savePredToFile(preds, targets, modelName):
+    modelFolder = "Models"
+    savePath = os.path.join(modelFolder, modelName, "Preds.csv")
+    with open(savePath, "w") as f:
+        f.write("Pred, Target \n")
+        for index, pred in tqdm(enumerate(preds), total = len(preds), desc="Saving Preds to {}".format(savePath)):
+            f.write("{},{}\n".format(pred, targets[index]))
 
 if __name__ == "__main__":
     args = parser.parse_args()
