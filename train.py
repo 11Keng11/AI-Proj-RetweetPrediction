@@ -155,9 +155,12 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
 
     # make model
     if forClassifier:
-        model = Binary_Classifier2(inputSize)
+        model = Binary_Classifier(inputSize)
     else:
         model = Net(inputSize)
+
+    # move model to gpu
+    model = model.to("cuda")
 
     # declare optimizer
     optimizer = o(model.parameters(), lr=lr)
@@ -179,8 +182,6 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
     else:
         criterion = MSLELoss()
 
-    # move model to gpu
-    model = model.to("cuda")
 
     with tqdm(range(start_epoch, start_epoch + n_epochs)) as ebar:
 

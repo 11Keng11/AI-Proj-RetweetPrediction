@@ -52,7 +52,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
     testLoader, inputSize = get_data_loader(mode="test", batch_size=batch_size, forClassifier=forClassifier)
 
     if forClassifier:
-        model = Binary_Classifier2(inputSize)
+        model = Binary_Classifier(inputSize)
     else:
         model = Net(inputSize)
 
@@ -88,7 +88,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
                 accuracy += (output.cpu().detach().numpy().round() == target.cpu().numpy().round()).mean()
 
             preds.extend(output.cpu().detach().numpy().round().astype(np.int).flatten().tolist())
-            targets.extend(target.cpu().numpy().flatten().tolist())
+            targets.extend(target.cpu().numpy().astype(np.int).flatten().tolist())
 
     # average the test loss
     testLoss /=  int(len(testLoader.dataset)/batch_size)
