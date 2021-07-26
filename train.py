@@ -157,7 +157,7 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
     if forClassifier:
         model = Binary_Classifier(inputSize)
     else:
-        model = Net(inputSize)
+        model = Net3(inputSize)
 
     # move model to gpu
     model = model.to("cuda")
@@ -195,23 +195,14 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
                     # Move to gpu
                     input_x = input_x.to("cuda")
                     target = target.to("cuda")
-                    # print("INPUT: ", input_x)
-                    # print ("Input finite: ", torch.isfinite(input_x).all())
+                    # calculate prediction
                     pred = model(input_x.float())
-                    # print ("PRED: ", pred)
-                    # print ("TARGET: ", target)
                     loss = criterion(pred, target.float())
-                    # for name, param in model.named_parameters():
-                    #     if param.requires_grad:
-                    #         print ("layer finite: ", torch.isfinite(param).all())
-                    # # print ("Before backward!")
-                    # print ("Loss: {}".format(loss.data))
+
                     loss.backward()
-                    # print ("After backward!")
-                    # print ("Loss: {}, grad: {}".format(loss.data, loss.grad))
+
                     optimizer.step()
-                    # print ("After step")
-                    # print ("Loss: {}, grad: {}".format(loss.data, loss.grad))
+
                     trainLoss += loss.cpu().item()
                     tbar.set_postfix(loss = trainLoss)
 

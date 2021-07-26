@@ -54,7 +54,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
     if forClassifier:
         model = Binary_Classifier(inputSize)
     else:
-        model = Net(inputSize)
+        model = Net3(inputSize)
 
     model.load_state_dict(checkpoint)
 
@@ -68,7 +68,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
     if forClassifier:
         criterion = nn.BCELoss()
     else:
-        criterion = MSLELoss()
+        criterion = nn.MSELoss()
 
     accuracy = 0
     targets = []
@@ -85,12 +85,18 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
             testBar.set_postfix(loss = testLoss)
             if forClassifier:
                 # calculate prediction
-                accuracy += (output.cpu().detach().numpy().round() == target.cpu().numpy().round()).mean()
+                accuracy += (output.cpu().detach().numpy().round().astype(np.int) == target.cpu().numpy().round().astype(np.int)).mean()
+
+            # else:
+            #     # rescale pred and target up based on log 2 scaling
+            #     output = torch.pow(output, 2)
+            #     target = torch.pow(target, 2)
 
             preds.extend(output.cpu().detach().numpy().round().astype(np.int).flatten().tolist())
             targets.extend(target.cpu().numpy().astype(np.int).flatten().tolist())
 
     # average the test loss
+    print (accuracy)
     testLoss /=  int(len(testLoader.dataset)/batch_size)
     accuracy /= int(len(testLoader.dataset)/batch_size)
 
