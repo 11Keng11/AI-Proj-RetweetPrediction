@@ -68,7 +68,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
     if forClassifier:
         criterion = nn.BCELoss()
     else:
-        criterion = nn.MSELoss()
+        criterion = MSLELoss()
 
     accuracy = 0
     targets = []
