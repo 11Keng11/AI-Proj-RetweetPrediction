@@ -1,6 +1,5 @@
 '''
-#Retweets Evaluation
-with reference to: https://onlinelibrary.wiley.com/doi/full/10.4218/etrij.14.0113.0657
+Ensemble Model Evaluation
 '''
 import os
 import torch
@@ -33,40 +32,42 @@ def checkIfModelNameExists(parser, arg):
         return
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-n", "--name", help="Training Name to load in data on", type=lambda x: checkIfModelNameExists(parser, x), required=True)
+parser.add_argument("-c", "--classifier", help="Classifier Name to load in data on", type=lambda x: checkIfModelNameExists(parser, x), required=True)
+parser.add_argument("-p", "--predictor", help="Predictor Name to load in data on", type=lambda x: checkIfModelNameExists(parser, x), required=True)
 parser.add_argument("-b", "--batch", help="Test batch size", type=int, default=8192)
-parser.add_argument("-c", "--classifier", type=str_to_bool, default=False)
 
 def parserSummary(args):
-    print ("Evaluating Model: {}.".format(args.name))
+    print ("Evaluating Ensemble Model.")
+    print ("Classifier: {}".format(args.classifier))
+    print ("Predictor: {}".format(args.predictor))
     print ("Batch Size: {}".format(args.batch))
-    print ("For classifier: {}".format(args.classifier))
 #======= END OF ARGPARSE BLOCK =======#
-
-def runTestOnModel(checkpoint, batch_size, forClassifier=False):
-    '''Run model on test set and conduct plots on the training stats
+def runTestOnEnsemble(classifierName, predictorName, batch_size):
+    ''' Run model on ensemble model
     '''
     # get test loader
-    testLoader, inputSize = get_data_loader(mode="test", batch_size=batch_size, forClassifier=forClassifier)
+    testLoader, inputSize = get_data_loader(mode="test", batch_size=batch_size, forClassifier=False, forEnsemble=True)
 
-    if forClassifier:
-        model = Binary_Classifier(inputSize)
-    else:
-        model = Net(inputSize)
+    # load in the sub models used in the ensemble model
+    classifierCheckpoint = getBestModel(classifierName)
+    modelClassifier = Binary_Classifier(inputSize)
+    modelClassifier.load_state_dict(classifierCheckpoint)
 
-    model.load_state_dict(checkpoint)
+    predictorCheckpoint = getBestModel(predictorName)
+    modelPredictor = Net(inputSize)
+    modelPredictor.load_state_dict(predictorCheckpoint)
+
+    # declare ensemble model
+    model = Ensemble(modelClassifier, modelPredictor)
 
     # move model to gpu
     model = model.to("cuda")
 
+    criterion = MSLELoss()
+
     # set the model to eval
     model.eval()
     testLoss = 0
-
-    if forClassifier:
-        criterion = nn.BCELoss()
-    else:
-        criterion = MSLELoss()
 
     accuracy = 0
     targets = []
@@ -77,8 +78,10 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
             input_x = input_x.to("cuda")
             target = target.to("cuda")
             output = model(input_x.float())
+            # convert output to int
+            output = torch.round(output)
             # calculate loss
-            loss = criterion(output, target.float())
+            loss = criterion(output, target)
             testLoss += loss.cpu().item()
             testBar.set_postfix(loss = testLoss)
 
@@ -98,46 +101,17 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
 
     return testLoss, preds, targets
 
-def plotTrainingStats(modelName, testLoss, forClassifier=False):
-    # get training stats
-    df = getTrainingStats(modelName)
-    fig = px.scatter(df, x="epoch", y=["train loss", "val loss"])
-    fig.add_hline(y=testLoss, line_width=3, line_dash="dash", line_color="green", annotation_text="Best Model Test Loss")
-    # update axis, titles
-    if forClassifier:
-        yAxis = "BCELoss"
-    else:
-        yAxis = "Mean Squared Log Error (MSLE)"
-    fig.update_layout(
-                        title="{} Training Stats".format(modelName),
-                        xaxis_title="Num Epoch",
-                        yaxis_title=yAxis,
-                        font=dict(
-                            family="Courier New, monospace",
-                            size=18,
-                            color="RebeccaPurple"
-                        )
-                    )
-
-    fig.show()
-
-def evaluate(modelName, batch_size, forClassifier=False):
-    '''Evaluate the given model with test data'''
-    # load in model checkpoint
-    checkpoint = getBestModel(modelName)
-    # run test on model
-    testLoss, preds, targets = runTestOnModel(checkpoint, batch_size, forClassifier)
+def evaluate(classifierName, predictorName, batch_size):
+    '''Evaluate the ensemble model with test data'''
+    testLoss, preds, targets = runTestOnEnsemble(classifierName, predictorName, batch_size)
     # save to file
-    savePredToFile(preds, targets, modelName)
+    savePredToFile(preds, targets, "")
     # Scores
     print ("Test Loss: {}".format(testLoss))
-    # plot training stats
-    plotTrainingStats(modelName, testLoss, forClassifier)
-
 
 def savePredToFile(preds, targets, modelName):
     modelFolder = "Models"
-    savePath = os.path.join(modelFolder, modelName, "Preds.csv")
+    savePath = os.path.join(modelFolder, modelName, "Ensemble_Preds.csv")
     with open(savePath, "w") as f:
         f.write("Pred, Target \n")
         for index, pred in tqdm(enumerate(preds), total = len(preds), desc="Saving Preds to {}".format(savePath)):
@@ -146,4 +120,4 @@ def savePredToFile(preds, targets, modelName):
 if __name__ == "__main__":
     args = parser.parse_args()
     parserSummary(args)
-    evaluate(args.name, args.batch, args.classifier)
+    evaluate(args.classifier, args.predictor, args.batch)

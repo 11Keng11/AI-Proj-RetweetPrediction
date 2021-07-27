@@ -13,11 +13,12 @@ from tqdm import tqdm
 from utils import getWordEmbeddings
 
 class TweetsCOV19Dataset(Dataset):
-    def __init__(self, mode = "train", forClassifier=False):
+    def __init__(self, mode = "train", forClassifier=False, forEnsemble=False):
         if mode not in ["train", "val", "test"]:
             raise ValueError("Mode must be 'train', 'val' or 'test'.")
         self._mode = mode
         self.forClassifier = forClassifier
+        self.forEnsemble = forEnsemble
         # hardcoded total number of rows based on self._mode
         if self._mode == "train":
             self.totalRows = 13978691
@@ -84,15 +85,20 @@ class TweetsCOV19Dataset(Dataset):
 
             return data
 
-        if self.forClassifier:
-            self.csv_file["No. of Retweets"] = reduceToClassifier(self.csv_file["No. of Retweets"].values)
+        if self.forEnsemble:
+            pass
         else:
-            # we need to drop the rows that have num of retweets = 0
-            self.csv_file.drop(self.csv_file.loc[self.csv_file["No. of Retweets"]==0].index, inplace=True)
-            # reset the index
-            self.csv_file.reset_index(inplace=True, drop=True)
-            # update total rows
-            self.totalRows = len(self.csv_file)
+            # not for ensemble model
+            if self.forClassifier:
+                self.csv_file["No. of Retweets"] = reduceToClassifier(self.csv_file["No. of Retweets"].values)
+            else:
+                # we need to drop the rows that have num of retweets = 0
+                self.csv_file.drop(self.csv_file.loc[self.csv_file["No. of Retweets"]==0].index, inplace=True)
+                # reset the index
+                self.csv_file.reset_index(inplace=True, drop=True)
+                # update total rows
+                self.totalRows = len(self.csv_file)
+
         X_data = self.csv_file.drop(columns=["No. of Retweets"], inplace=False).values
         Y_data = self.csv_file.loc[:, self.csv_file.columns == 'No. of Retweets'].values
 
@@ -122,9 +128,9 @@ class TweetsCOV19Dataset(Dataset):
         return self.x_tensor[index], self.y_tensor[index]
 
 
-def get_data_loader(mode="train", batch_size=64, forClassifier=False):
+def get_data_loader(mode="train", batch_size=64, forClassifier=False, forEnsemble=False):
     '''Get the Dataloader, mode can be train or validation'''
-    dataset = TweetsCOV19Dataset(mode=mode, forClassifier=forClassifier)
+    dataset = TweetsCOV19Dataset(mode=mode, forClassifier=forClassifier, forEnsemble=forEnsemble)
     return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True), dataset.x_tensor.shape[1] #num workers > 0 & pin_memory = True means dataloading will be async
 
 if __name__ == "__main__":

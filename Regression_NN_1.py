@@ -5,10 +5,10 @@ import torch.nn as nn
 class Net(nn.Module):
     def __init__(self, n_feature):
         super().__init__()
-        self.fc0 = nn.Linear(n_feature, 32)
-        self.fc1 = nn.Linear(32, 64)
-        self.fc2 = nn.Linear(64, 128)
-        self.fc3 = nn.Linear(128, 1)
+        self.fc0 = nn.Linear(n_feature, 512)
+        self.fc1 = nn.Linear(512, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 1)
         self.dropout = nn.Dropout(0.3)
         self.relu = nn.ReLU()
 
@@ -70,6 +70,18 @@ class Binary_Classifier(nn.Module):
         x = self.relu(self.dropout(self.fc2(x)))
         x = self.sigmoid(self.fc3(x))
         return x
+
+class Ensemble(nn.Module):
+    def __init__(self, classifier, predictor):
+        super().__init__()
+        self.modelClassifier = classifier
+        self.modelPredictor = predictor
+
+    def forward(self, x):
+        # check if have retweets
+        retweet = torch.round(self.modelClassifier(x))
+        numRetweets = retweet * self.modelPredictor(x)
+        return numRetweets
 
 if __name__ == "__main__":
     model = Binary_Classifier(49)

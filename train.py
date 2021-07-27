@@ -110,7 +110,7 @@ def saveTrainingStats(epoch, trainLoss, valLoss, modelName):
         data = ",".join([str(epoch), str(trainLoss), str(valLoss)])
         f.write(data+"\n")
 
-def saveModel(model, optimizer, trainLoss, valLoss, modelName, epoch):
+def saveModel(model, optimizer, scheduler, trainLoss, valLoss, modelName, epoch):
     '''Saves the current model state dict based on modelname input
      and current epoch'''
     modelFolder = "Models"
@@ -124,6 +124,7 @@ def saveModel(model, optimizer, trainLoss, valLoss, modelName, epoch):
                 "Epoch": epoch,
                 "Model": model.state_dict(),
                 "Optimizer": optimizer.state_dict(),
+                "Scheduler": scheduler.state_dict(),
                 "trainLoss": trainLoss,
                 "valLoss": valLoss,
                 }, savePath)
@@ -150,20 +151,23 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
     '''Train'''
 
     # get the respective data loaders
-    trainLoader, inputSize = get_data_loader(mode="train", batch_size=batch_size, forClassifier=forClassifier)
-    valLoader, _ = get_data_loader(mode="val", batch_size=batch_size, forClassifier=forClassifier)
+    trainLoader, inputSize = get_data_loader(mode="train", batch_size=batch_size, forClassifier=forClassifier, forEnsemble=False)
+    valLoader, _ = get_data_loader(mode="val", batch_size=batch_size, forClassifier=forClassifier, forEnsemble=False)
 
     # make model
     if forClassifier:
         model = Binary_Classifier(inputSize)
     else:
-        model = Net3(inputSize)
+        model = Net(inputSize)
 
     # move model to gpu
     model = model.to("cuda")
 
     # declare optimizer
     optimizer = o(model.parameters(), lr=lr)
+
+    # set up the lr scheduler
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=0)
 
     # declare init vars
     start_epoch = 1
@@ -174,6 +178,7 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
         checkpoint = getModelCheckpoint(experiment_name)
         model.load_state_dict(checkpoint["Model"])
         optimizer.load_state_dict(checkpoint["Optimizer"])
+        scheduler.load_state_dict(checkpoint['Scheduler'])
         start_epoch = checkpoint["Epoch"] + 1
         bestValLoss = checkpoint["valLoss"]
 
@@ -203,8 +208,11 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
 
                     optimizer.step()
 
+
                     trainLoss += loss.cpu().item()
                     tbar.set_postfix(loss = trainLoss)
+
+            scheduler.step()
 
             # Evaluation
             # accuracy = 0
@@ -240,7 +248,7 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
                 saveBestModel(model, experiment_name)
 
             # save model every epoch for resuming in future
-            saveModel(model, optimizer, trainLoss, valLoss, experiment_name, epoch)
+            saveModel(model, optimizer, scheduler, trainLoss, valLoss, experiment_name, epoch)
 
             # save states
             saveTrainingStats(epoch, trainLoss, valLoss, experiment_name)
