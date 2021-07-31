@@ -52,10 +52,12 @@ def runTestOnEnsemble(classifierName, predictorName, batch_size):
     classifierCheckpoint = getBestModel(classifierName)
     modelClassifier = Binary_Classifier(inputSize)
     modelClassifier.load_state_dict(classifierCheckpoint)
+    modelClassifier.eval()
 
     predictorCheckpoint = getBestModel(predictorName)
     modelPredictor = Net(inputSize)
     modelPredictor.load_state_dict(predictorCheckpoint)
+    modelPredictor.eval()
 
     # declare ensemble model
     model = Ensemble(modelClassifier, modelPredictor)
@@ -68,6 +70,10 @@ def runTestOnEnsemble(classifierName, predictorName, batch_size):
     # set the model to eval
     model.eval()
     testLoss = 0
+
+    # calc MAE
+    MAE = nn.L1Loss()
+    testMAE = 0
 
     accuracy = 0
     targets = []
@@ -82,8 +88,11 @@ def runTestOnEnsemble(classifierName, predictorName, batch_size):
             output = torch.round(output)
             # calculate loss
             loss = criterion(output, target)
-            testLoss += loss.cpu().item()
+            testLoss += loss.cpu().item() * len(target)
             testBar.set_postfix(loss = testLoss)
+            # calculate MAE
+            MAELoss = MAE(output, target)
+            testMAE += MAELoss.cpu().item() * len(target)
 
             accuracy += (output.cpu().detach().numpy().round().astype(np.int) == target.cpu().numpy().round().astype(np.int)).mean()
 
@@ -91,23 +100,24 @@ def runTestOnEnsemble(classifierName, predictorName, batch_size):
             targets.extend(target.cpu().numpy().astype(np.int).flatten().tolist())
 
     # average the test loss
-    testLoss /=  int(len(testLoader.dataset)/batch_size)
+    testLoss /=  len(testLoader.dataset)
     accuracy /= int(len(testLoader.dataset)/batch_size)
+    testMAE /= len(testLoader.dataset)
 
     print ("Accuracy: {}".format(accuracy))
 
     print ("Preds: {}".format(preds[:10]))
     print ("Targets: {}".format(targets[:10]))
 
-    return testLoss, preds, targets
+    return testLoss, testMAE, preds, targets
 
 def evaluate(classifierName, predictorName, batch_size):
     '''Evaluate the ensemble model with test data'''
-    testLoss, preds, targets = runTestOnEnsemble(classifierName, predictorName, batch_size)
+    testLoss, testMAE, preds, targets = runTestOnEnsemble(classifierName, predictorName, batch_size)
     # save to file
     savePredToFile(preds, targets, "")
     # Scores
-    print ("Test Loss: {}".format(testLoss))
+    print ("Test Loss: {}. Test MAE: {}".format(testLoss, testMAE))
 
 def savePredToFile(preds, targets, modelName):
     modelFolder = "Models"

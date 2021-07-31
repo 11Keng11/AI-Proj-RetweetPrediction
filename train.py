@@ -158,7 +158,7 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
     if forClassifier:
         model = Binary_Classifier(inputSize)
     else:
-        model = Net(inputSize)
+        model = Net2(inputSize)
 
     # move model to gpu
     model = model.to("cuda")
@@ -167,7 +167,9 @@ def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, e
     optimizer = o(model.parameters(), lr=lr)
 
     # set up the lr scheduler
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=0)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=25, T_mult=1, eta_min=1e-6)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100, eta_min=0)
+    # scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=lr/10, max_lr=lr,step_size_up=5,mode="triangular2", gamma=0.1, cycle_momentum=False)
 
     # declare init vars
     start_epoch = 1

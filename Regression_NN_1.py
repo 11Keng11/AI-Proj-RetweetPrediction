@@ -5,8 +5,8 @@ import torch.nn as nn
 class Net(nn.Module):
     def __init__(self, n_feature):
         super().__init__()
-        self.fc0 = nn.Linear(n_feature, 512)
-        self.fc1 = nn.Linear(512, 128)
+        self.fc0 = nn.Linear(n_feature, 256)
+        self.fc1 = nn.Linear(256, 128)
         self.fc2 = nn.Linear(128, 64)
         self.fc3 = nn.Linear(64, 1)
         self.dropout = nn.Dropout(0.3)
@@ -22,10 +22,10 @@ class Net(nn.Module):
 class Net2(nn.Module):
     def __init__(self, n_feature):
         super().__init__()
-        self.fc0 = nn.Linear(n_feature, 256)
-        self.fc1 = nn.Linear(256, 512)
-        self.fc2 = nn.Linear(512, 512)
-        self.fc3 = nn.Linear(512, 1)
+        self.fc0 = nn.Linear(n_feature, 512)
+        self.fc1 = nn.Linear(512, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 1)
         self.dropout = nn.Dropout(0.3)
         self.relu = nn.ReLU()
 

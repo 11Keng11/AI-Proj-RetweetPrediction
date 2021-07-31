@@ -52,7 +52,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
     if forClassifier:
         model = Binary_Classifier(inputSize)
     else:
-        model = Net(inputSize)
+        model = Net2(inputSize)
 
     model.load_state_dict(checkpoint)
 
@@ -79,7 +79,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
             output = model(input_x.float())
             # calculate loss
             loss = criterion(output, target.float())
-            testLoss += loss.cpu().item()
+            testLoss += loss.cpu().item() * len(target)
             testBar.set_postfix(loss = testLoss)
 
             accuracy += (output.cpu().detach().numpy().round().astype(np.int) == target.cpu().numpy().round().astype(np.int)).mean()
@@ -88,7 +88,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False):
             targets.extend(target.cpu().numpy().astype(np.int).flatten().tolist())
 
     # average the test loss
-    testLoss /=  int(len(testLoader.dataset)/batch_size)
+    testLoss /=  len(testLoader.dataset)
     accuracy /= int(len(testLoader.dataset)/batch_size)
 
     print ("Accuracy: {}".format(accuracy))
