@@ -36,23 +36,25 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-n", "--name", help="Training Name to load in data on", type=lambda x: checkIfModelNameExists(parser, x), required=True)
 parser.add_argument("-b", "--batch", help="Test batch size", type=int, default=8192)
 parser.add_argument("-c", "--classifier", type=str_to_bool, default=False)
+parser.add_argument("-d", "--data", type=str, default="processed", help="Dataset prestring")
 
 def parserSummary(args):
     print ("Evaluating Model: {}.".format(args.name))
+    print ("Using dataset pre string: {}".format(args.data))
     print ("Batch Size: {}".format(args.batch))
     print ("For classifier: {}".format(args.classifier))
 #======= END OF ARGPARSE BLOCK =======#
 
-def runTestOnModel(checkpoint, batch_size, forClassifier=False):
+def runTestOnModel(checkpoint, batch_size, forClassifier=False, data="processed"):
     '''Run model on test set and conduct plots on the training stats
     '''
     # get test loader
-    testLoader, inputSize = get_data_loader(mode="test", batch_size=batch_size, forClassifier=forClassifier)
+    testLoader, inputSize = get_data_loader(mode="test", batch_size=batch_size, forClassifier=forClassifier, data=data)
 
     if forClassifier:
         model = Binary_Classifier(inputSize)
     else:
-        model = Net2(inputSize)
+        model = Net5(inputSize)
 
     model.load_state_dict(checkpoint)
 
@@ -121,12 +123,12 @@ def plotTrainingStats(modelName, testLoss, forClassifier=False):
 
     fig.show()
 
-def evaluate(modelName, batch_size, forClassifier=False):
+def evaluate(modelName, batch_size, forClassifier=False, data="processed"):
     '''Evaluate the given model with test data'''
     # load in model checkpoint
     checkpoint = getBestModel(modelName)
     # run test on model
-    testLoss, preds, targets = runTestOnModel(checkpoint, batch_size, forClassifier)
+    testLoss, preds, targets = runTestOnModel(checkpoint, batch_size, forClassifier, data=data)
     # save to file
     savePredToFile(preds, targets, modelName)
     # Scores
@@ -146,4 +148,4 @@ def savePredToFile(preds, targets, modelName):
 if __name__ == "__main__":
     args = parser.parse_args()
     parserSummary(args)
-    evaluate(args.name, args.batch, args.classifier)
+    evaluate(args.name, args.batch, args.classifier, args.data)

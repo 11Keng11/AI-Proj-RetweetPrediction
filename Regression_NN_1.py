@@ -39,10 +39,27 @@ class Net2(nn.Module):
 class Net3(nn.Module):
     def __init__(self, n_feature):
         super().__init__()
-        self.fc0 = nn.Linear(n_feature, 2048)
-        self.fc1 = nn.Linear(2048, 1024)
-        self.fc2 = nn.Linear(1024, 512)
-        self.fc3 = nn.Linear(512, 1)
+        self.fc0 = nn.Linear(n_feature, 128)
+        self.fc1 = nn.Linear(128, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 1)
+        self.dropout = nn.Dropout(0.3)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.dropout(self.relu(self.fc0(x)))
+        x = self.dropout(self.relu(self.fc1(x)))
+        x = self.dropout(self.relu(self.fc2(x)))
+        x = self.relu(self.fc3(x))
+        return x
+
+class Net4(nn.Module):
+    def __init__(self, n_feature):
+        super().__init__()
+        self.fc0 = nn.Linear(n_feature, 64)
+        self.fc1 = nn.Linear(64, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 1)
         self.dropout = nn.Dropout(0.3)
         self.relu = nn.ReLU()
 
@@ -72,15 +89,20 @@ class Binary_Classifier(nn.Module):
         return x
 
 class Ensemble(nn.Module):
-    def __init__(self, classifier, predictor):
+    def __init__(self, classifier, predictors):
         super().__init__()
         self.modelClassifier = classifier
-        self.modelPredictor = predictor
+        self.predictors = predictors
 
     def forward(self, x):
         # check if have retweets
         retweet = torch.round(self.modelClassifier(x))
-        numRetweets = retweet * self.modelPredictor(x)
+        p = 0
+        for pred in self.predictors:
+            p += pred(x)
+        p /= len(self.predictors)
+
+        numRetweets = retweet * p
         return numRetweets
 
 if __name__ == "__main__":

@@ -39,9 +39,11 @@ parser.add_argument("-n", "--name", help="training session name", type=str, defa
 parser.add_argument("-lr", "--learningrate", help="learning rate for model training", type=float, default=1e-3)
 parser.add_argument("-o", "--optimizer", help="optimizer for model training", type=str, choices=["SGD", "ADAM", "RMSPROP"], default="SGD")
 parser.add_argument("-c", "--classifier", type=str_to_bool, default=False)
+parser.add_argument("-d", "--data", type=str, default="processed", help="Dataset prestring")
 
 def parserSummary(args):
     print ("Training #Retweets Model.")
+    print ("Using dataset pre string: {}".format(args.data))
     print ("Running with: {} epoch(s)".format(args.epoch))
     print ("Batch Size: {}".format(args.batch))
     print ("Learning Rate: {}".format(args.learningrate))
@@ -147,18 +149,18 @@ def getChosenOptimizer(opt):
         raise Exception("Invalid optimizer input!")
 #==== END OF HELPER FUNCTIONS BLOCK ====#
 
-def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, experiment_name="test", forClassifier=False):
+def train(RESUME_TRAIN, n_epochs=1, batch_size=64, lr=1e-3, o=torch.optim.SGD, experiment_name="test", forClassifier=False, data="processed"):
     '''Train'''
 
     # get the respective data loaders
-    trainLoader, inputSize = get_data_loader(mode="train", batch_size=batch_size, forClassifier=forClassifier, forEnsemble=False)
-    valLoader, _ = get_data_loader(mode="val", batch_size=batch_size, forClassifier=forClassifier, forEnsemble=False)
+    trainLoader, inputSize = get_data_loader(mode="train", batch_size=batch_size, forClassifier=forClassifier, forEnsemble=False, data=data)
+    valLoader, _ = get_data_loader(mode="val", batch_size=batch_size, forClassifier=forClassifier, forEnsemble=False, data=data)
 
     # make model
     if forClassifier:
         model = Binary_Classifier(inputSize)
     else:
-        model = Net2(inputSize)
+        model = Net(inputSize)
 
     # move model to gpu
     model = model.to("cuda")
@@ -269,6 +271,6 @@ if __name__ == "__main__":
     saveRunArgs(args)
     # train!
     try:
-        train(RESUME_TRAIN, args.epoch, args.batch, args.learningrate, optimizer, args.name, args.classifier)
+        train(RESUME_TRAIN, args.epoch, args.batch, args.learningrate, optimizer, args.name, args.classifier, args.data)
     except KeyboardInterrupt:
         exit()
