@@ -1,24 +1,20 @@
 import numpy as np
 import pandas as pd
 from sklearn import metrics
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.ensemble import RandomForestClassifier
-from model_bin_class import sc as sc1
-from model_regression import sc as sc2
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import pickle
 from tqdm import tqdm
 
 print("Loading Models")
 model_classifier = pickle.load(open('models/randomForestClassifier.sav', 'rb'))
 model_regressor = pickle.load(open('models/randomForestRegressor.sav', 'rb'))
+sc_bin = pickle.load(open('models/scBin.pkl', 'rb'))
+sc_scaler = pickle.load(open('models/scReg.pkl', 'rb'))
 
 print("Reading data...")
-data_test = pd.read_csv('datasets/mod_test.csv')
+data_test = pd.read_csv('datasets/final_test_mod.csv')
 x_test = data_test.iloc[:, :-2]
-y_test = data_test.iloc[:, -1]
-X_test = sc1.transform(x_test)
+y_test = data_test.iloc[:, -2]
+X_test = sc_bin.transform(x_test)
 y_pred = [0]*len(X_test)
 y_idx = []
 x_1 = []
@@ -30,7 +26,7 @@ print("Extracting if retweet is true...")
 for idx in tqdm(range(len(temp_pred))):
     if temp_pred[idx] != 0:
         row = x_test.iloc[idx]
-        row_fit = sc2.transform([row])
+        row_fit = sc_scaler.transform([row])
         x_1.append(row_fit[0])
         y_idx.append(idx)
 
