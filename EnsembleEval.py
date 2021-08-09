@@ -6,7 +6,7 @@ import torch
 import argparse
 from glob import glob
 import re
-from Regression_NN_1 import *
+from Models import *
 from Dataloader import get_data_loader
 from utils import *
 from tqdm import tqdm

@@ -13,7 +13,7 @@ import time
 import math
 from tqdm import tqdm
 import argparse
-from Regression_NN_1 import *
+from Models import *
 from glob import glob
 import re
 
