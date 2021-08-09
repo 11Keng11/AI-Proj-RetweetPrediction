@@ -32,56 +32,78 @@ def checkIfModelNameExists(parser, arg):
         return
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--classifier", help="Classifier Name to load in data on", type=lambda x: checkIfModelNameExists(parser, x), required=False)
-parser.add_argument("-p", "--predictor", help="Predictor Name to load in data on", type=lambda x: checkIfModelNameExists(parser, x), required=False)
+parser.add_argument("-c", "--classifier", help="Classifier Name to load in data on", type=lambda x: checkIfModelNameExists(parser, x), required=True)
+parser.add_argument("-p", "--predictor", nargs='+', help="Predictor Name to load in data on", type=lambda x: checkIfModelNameExists(parser, x), required=True)
 parser.add_argument("-b", "--batch", help="Test batch size", type=int, default=8192)
 parser.add_argument("-d", "--data", type=str, default="processed", help="Dataset prestring")
 
 def parserSummary(args):
     print ("Evaluating Ensemble Model.")
     print ("Using dataset pre string: {}".format(args.data))
-    # print ("Classifier: {}".format(args.classifier))
-    # print ("Predictor: {}".format(args.predictor))
+    print ("Classifier: {}".format(args.classifier))
+    print ("Predictor: {}".format(args.predictor))
     print ("Batch Size: {}".format(args.batch))
 #======= END OF ARGPARSE BLOCK =======#
-def runTestOnEnsemble(classifierName, predictorName, batch_size, data="processed"):
+def runTestOnEnsemble(classifierName, predictorNames, batch_size, data="processed"):
     ''' Run model on ensemble model
     '''
     # get test loader
     testLoader, inputSize = get_data_loader(mode="test", batch_size=batch_size, forClassifier=False, forEnsemble=True, data=data)
 
-    # load in the sub models used in the ensemble model
-    classifierCheckpoint = getBestModel("BinaryClassifier")
+    # Loop through classifier models
+    classifierCheckpoint = getBestModel(classifierName)
     modelClassifier = Binary_Classifier(inputSize)
     modelClassifier.load_state_dict(classifierCheckpoint)
+    modelClassifier = modelClassifier.to("cuda")
     modelClassifier.eval()
 
-    predictorCheckpoint1 = getBestModel("PredictorNet1")
-    modelPredictor1 = Net(inputSize)
-    modelPredictor1.load_state_dict(predictorCheckpoint1)
-    modelPredictor1.cuda()
-    modelPredictor1.eval()
+    # loop through predictor models
+    predictorModels = []
+    for index, predModelName in enumerate(predictorNames):
+        if not predModelName:
+            continue
+        predictorCheckpoint = getBestModel(predModelName)
+        NETS = [Net, Net2, Net3, Net4]
+        model = NETS[index](inputSize)
+        model.load_state_dict(predictorCheckpoint)
+        model = model.to("cuda")
+        model.eval()
+        predictorModels.append(model)
 
-    predictorCheckpoint2 = getBestModel("PredictorNet2")
-    modelPredictor2 = Net2(inputSize)
-    modelPredictor2.load_state_dict(predictorCheckpoint2)
-    modelPredictor2.cuda()
-    modelPredictor2.eval()
 
-    predictorCheckpoint3 = getBestModel("PredictorNet3")
-    modelPredictor3 = Net3(inputSize)
-    modelPredictor3.load_state_dict(predictorCheckpoint3)
-    modelPredictor3.cuda()
-    modelPredictor3.eval()
-
-    predictorCheckpoint4 = getBestModel("PredictorNet4")
-    modelPredictor4 = Net4(inputSize)
-    modelPredictor4.load_state_dict(predictorCheckpoint4)
-    modelPredictor4.cuda()
-    modelPredictor4.eval()
+    # # load in the sub models used in the ensemble model
+    # classifierCheckpoint = getBestModel("BinaryClassifier")
+    # modelClassifier = Binary_Classifier(inputSize)
+    # modelClassifier.load_state_dict(classifierCheckpoint)
+    # modelClassifier = modelClassifier.to("cuda")
+    # modelClassifier.eval()
+    #
+    # predictorCheckpoint1 = getBestModel("PredictorNet1")
+    # modelPredictor1 = Net(inputSize)
+    # modelPredictor1.load_state_dict(predictorCheckpoint1)
+    # modelPredictor1 = modelPredictor1.to("cuda")
+    # modelPredictor1.eval()
+    #
+    # predictorCheckpoint2 = getBestModel("PredictorNet2")
+    # modelPredictor2 = Net2(inputSize)
+    # modelPredictor2.load_state_dict(predictorCheckpoint2)
+    # modelPredictor2 = modelPredictor2.to("cuda")
+    # modelPredictor2.eval()
+    #
+    # predictorCheckpoint3 = getBestModel("PredictorNet3")
+    # modelPredictor3 = Net3(inputSize)
+    # modelPredictor3.load_state_dict(predictorCheckpoint3)
+    # modelPredictor3 = modelPredictor3.to("cuda")
+    # modelPredictor3.eval()
+    #
+    # predictorCheckpoint4 = getBestModel("PredictorNet4")
+    # modelPredictor4 = Net4(inputSize)
+    # modelPredictor4.load_state_dict(predictorCheckpoint4)
+    # modelPredictor4 = modelPredictor4.to("cuda")
+    # modelPredictor4.eval()
 
     # declare ensemble model
-    model = Ensemble(modelClassifier, [modelPredictor1, modelPredictor2, modelPredictor3, modelPredictor4])
+    model = Ensemble(modelClassifier, predictorModels)
 
     # move model to gpu
     model = model.to("cuda")

@@ -7,7 +7,7 @@ import argparse
 import pandas as pd
 import os
 from tqdm import tqdm
-from utils import getWordEmbeddings
+from utils import getWordEmbeddings, encodeDateTime
 import numpy as np
 from datetime import datetime
 
@@ -70,41 +70,6 @@ def counter(values, name, splitBy):
             boolean.append(0)
     return data, boolean
 
-# def count_hashtags_mentions(values):
-#     for value in tqdm(values, desc="Counting":
-#         value = str(value)
-#         if value != "null;":
-#             HM_list = value.split(" ")
-#             HM_list = [x for x in HM_list if x]
-#             return len(HM_list)
-#         else:
-#             return 0
-
-# def count_URLs(value):
-#     value = str(value)
-#     if value != "null;":
-#         URL_list = value.split(":-:")
-#         URL_list = [x for x in URL_list if x]
-#         return len(URL_list)
-#     else:
-#         return 0
-
-# def entityEmbed(embeddings, value):
-#     if value != "null;":
-#         entities_list = value.split(";")
-#         entities_list = [x for x in entities_list if x]
-#         numEntities = len(entities_list)
-#         embed = np.zeros((1, 50)).astype(np.float32)
-#         for e in entities_list:
-#             root = e.split(":")[0]
-#             if root in embeddings:
-#                 embed += embeddings[root]
-#             else:
-#                 embed += np.random.rand(1, 50).astype(np.float32)
-#         return embed.flatten()
-#     else:
-#         return np.random.rand(1,50).astype(np.float32).flatten()
-
 def entityEmbed(value):
     embeddings = getWordEmbeddings()
     # loop through the values
@@ -130,9 +95,6 @@ def entityEmbed(value):
 
         data.append(d)
     return data
-
-
-
 
 def extractEntityWords(value):
     if value != "null;":
@@ -161,10 +123,16 @@ def timeProcesser(values):
                 }
     hours = {"H_{}".format(x):[] for x in range(1, 25)}
     isWeekend = []
+    day_sins = []
+    day_coss = []
+    month_sins = []
+    month_coss = []
+    time_sins = []
+    time_coss = []
     for value in tqdm(values, desc="Processing Timestamp"):
         datetimeObj = datetime.strptime(value, '%a %b %d %X %z %Y')
         weekday = datetimeObj.strftime("%A")
-        hour = int(datetimeObj.strftime("%H")) + 1
+        # hour = int(datetimeObj.strftime("%H")) + 1
         weekdayEnum = {"Monday":1,
                        "Tuesday":2,
                        "Wednesday":3,
@@ -172,21 +140,29 @@ def timeProcesser(values):
                        "Friday":5,
                        "Saturday":6,
                        "Sunday":7}
-        for day in weekdays:
-            if day == weekday:
-                weekdays[day].append(1)
-            else:
-                weekdays[day].append(0)
-        for h in hours:
-            if str(h) == hour:
-                hours[h].append(1)
-            else:
-                hours[h].append(0)
+
+        day_sin, day_cos, month_sin, month_cos, time_sin, time_cos = encodeDateTime(value)
+        day_sins.append(day_sin)
+        day_coss.append(day_cos)
+        month_sins.append(month_sin)
+        month_coss.append(month_cos)
+        time_sins.append(time_sin)
+        time_coss.append(time_cos)
+        # for day in weekdays:
+        #     if day == weekday:
+        #         weekdays[day].append(1)
+        #     else:
+        #         weekdays[day].append(0)
+        # for h in hours:
+        #     if str(h) == hour:
+        #         hours[h].append(1)
+        #     else:
+        #         hours[h].append(0)
         if weekdayEnum[weekday] < 6:
             isWeekend.append(0)
         else:
             isWeekend.append(1)
-    return weekdays, hours, isWeekend
+    return day_sins, day_coss, month_sins, month_coss, time_sins, time_coss, isWeekend
 
 def getFollowerFriendRatio(followers, friends):
     data = []
@@ -245,10 +221,11 @@ def processData(df):
     df["Entities"] = numEntities
     df["hasEntities"] = hasEntities
     # process timestamp
-    weekday, hour, isWeekend = timeProcesser(df["Timestamp"].values)
-    df = pd.concat([df, pd.DataFrame(weekday), pd.DataFrame(hour)], axis="columns")
+    day_sin, day_cos, month_sin, month_cos, time_sin, time_cos, isWeekend = timeProcesser(df["Timestamp"].values)
+    df = pd.concat([df, pd.DataFrame(day_sin), pd.DataFrame(day_cos), pd.DataFrame(month_sin), pd.DataFrame(month_cos),
+    pd.DataFrame(time_sin), pd.DataFrame(time_cos)], axis="columns")
     df["isWeekend"] = isWeekend
-    df.drop(columns=["Timestamp"], inplace=True)
+    df.drop(columns=["Timestamp"], inplace=True) # remove the timestamp column
     # get follower friend ratio
     df["FollowerFriendRatio"] = getFollowerFriendRatio(df["No. of Followers"].values, df["No. of Friends"].values)
     # get favourite follower ratio

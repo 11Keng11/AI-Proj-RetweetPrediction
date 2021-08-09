@@ -54,7 +54,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False, data="processed"
     if forClassifier:
         model = Binary_Classifier(inputSize)
     else:
-        model = Net5(inputSize)
+        model = Net(inputSize)
 
     model.load_state_dict(checkpoint)
 
@@ -103,6 +103,7 @@ def runTestOnModel(checkpoint, batch_size, forClassifier=False, data="processed"
 def plotTrainingStats(modelName, testLoss, forClassifier=False):
     # get training stats
     df = getTrainingStats(modelName)
+    # df = df.iloc[::5, :]
     fig = px.scatter(df, x="epoch", y=["train loss", "val loss"])
     fig.add_hline(y=testLoss, line_width=3, line_dash="dash", line_color="green", annotation_text="Best Model Test Loss")
     # update axis, titles

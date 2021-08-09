@@ -9,6 +9,7 @@ from glob import glob
 import re
 import os
 import pandas as pd
+import calendar
 
 class RMSLELoss(nn.Module):
     '''Root Mean Square Logarithmic Error is a custom loss function
@@ -68,6 +69,58 @@ def getTrainingStats(modelName):
     saveDir = os.path.join(modelFolder, modelName)
     df = pd.read_csv(os.path.join(saveDir, "trainingStats.csv"))
     return df
+
+### Data processing useful functions ###
+# input String object: dateString. Example "Tue Jun 30 02:12:41 +0000 2020"
+# output List object: encDateTime. Format: [day_sin, day_cos, month_sin, month_cos, time_sin, time_cos]
+def encodeDateTime(dateString):
+    dayStr = dateString[:3]
+    monStr = dateString[4:7]
+    hourStr = dateString[11:13]
+    minStr = dateString[14:16]
+    secStr = dateString[17:19]
+
+    dayEnc = encodeDay(dayStr)
+    monEnc = encodeMon(monStr)
+    timeEnc = encodeTime(hourStr, minStr, secStr)
+
+    encDateTime = dayEnc + monEnc + timeEnc
+    return encDateTime
+
+# input Sting obj: monStr. Example: "Jan"
+# output List obj: monEnc. Format: [mon_sin, mon_cos]
+def encodeMon(monStr):
+    monDict = {month: index for index, month in enumerate(calendar.month_abbr) if month}
+    monInt = monDict[monStr]
+    monEnc = cyclicEncode(monInt,12)
+    return monEnc
+
+# input Sting obj: dayStr. Example: "Tue"
+# output List obj: monEnc. Format: [day_sin, day_cos]
+def encodeDay(dayStr):
+    dayDict = {day: index for index, day in enumerate(calendar.day_abbr) if day}
+    dayInt = dayDict[dayStr]
+    dayEnc = cyclicEncode(dayInt,7)
+    return dayEnc
+
+# input Sting obj: hourStr,minStr,secStr. Example: "02", "12", "41"
+# output List obj: timeEnc. Format: [time_sin, time_cos]
+def encodeTime(hourStr,minStr,secStr):
+    hourInt = int(hourStr)
+    secInt = int(minStr)*60 + int(secStr)
+    secFlt = secInt/3600
+    timeFlt = hourInt + secFlt
+    timeEnc = cyclicEncode(timeFlt,24)
+    return timeEnc
+
+# input Int obj: num, size. Example: 2, 12. **2 to represent febuary. 12 to represent total number of months**
+# output List obj: [x,y]. Format: [XX_sin, XX_cos]
+def cyclicEncode(num, size):
+    x = np.sin(2 * np.pi * num/size)
+    y = np.cos(2 * np.pi * num/size)
+    return [x,y]
+
+#==== END OF DATA PROCESSING FUNCTIONS ====#
 
 
 if __name__ == "__main__":
